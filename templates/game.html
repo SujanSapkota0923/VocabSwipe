@@ -3,6 +3,10 @@
 
 {% block extra_css %}
 <style>
+    body {
+        overscroll-behavior: none;
+    }
+
     .card-container {
         perspective: 1000px;
         width: 100%;
@@ -10,6 +14,7 @@
         height: 600px;
         position: relative;
         margin: 0 auto;
+        touch-action: none;
     }
 
     .vocab-card {
@@ -117,8 +122,15 @@
 <div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
     <div class="flex justify-between items-center mb-8">
         <div>
-            <h2 class="text-2xl font-bold text-slate-800">Learn Mode</h2>
-            <div id="progress-container" class="flex items-center space-x-2 mt-1">
+            <a href="{% url 'upload' %}"
+                class="inline-flex items-center text-slate-500 hover:text-indigo-600 font-bold mb-2 transition-colors">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Change List
+            </a>
+            <div id="progress-container" class="flex items-center space-x-2">
                 <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div id="progress-bar" class="h-full gradient-bg w-0 transition-all duration-300"></div>
                 </div>
@@ -137,42 +149,30 @@
         </button>
     </div>
 
-    <div id="game-container" class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- Sidebar for List Selection -->
-        <div class="lg:col-span-1 space-y-6">
-            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Select List</h3>
-                <div id="list-selection" class="space-y-2">
-                    <!-- Lists will be injected here -->
-                </div>
-            </div>
+    <div id="game-container" class="max-w-md mx-auto relative">
+        <div id="card-stack" class="card-container">
+            <!-- Cards will be injected here -->
         </div>
 
-        <div class="lg:col-span-3 relative">
-            <div id="card-stack" class="card-container">
-                <!-- Cards will be injected here -->
+        <!-- Completion Screen (hidden initially) -->
+        <div id="completion-screen"
+            class="hidden text-center py-20 bg-white rounded-3xl shadow-xl border border-slate-100 max-w-md mx-auto">
+            <div class="mb-6 inline-flex p-4 bg-green-50 rounded-full text-green-500">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
             </div>
-
-            <!-- Completion Screen (hidden initially) -->
-            <div id="completion-screen"
-                class="hidden text-center py-20 bg-white rounded-3xl shadow-xl border border-slate-100 max-w-md mx-auto">
-                <div class="mb-6 inline-flex p-4 bg-green-50 rounded-full text-green-500">
-                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <h2 class="text-3xl font-extrabold mb-2">Great job!</h2>
-                <p id="completion-message" class="text-slate-500 mb-8 px-8">You've finished the entire deck. Ready for
-                    another round?</p>
-                <div class="space-y-3 px-8">
-                    <button id="replay-btn"
-                        class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all transform hover:-translate-y-1">Replay
-                        Deck</button>
-                    <a href="{% url 'upload' %}"
-                        class="block w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200">Upload
-                        New List</a>
-                </div>
+            <h2 class="text-3xl font-extrabold mb-2">Great job!</h2>
+            <p id="completion-message" class="text-slate-500 mb-8 px-8">You've finished the entire deck. Ready for
+                another round?</p>
+            <div class="space-y-3 px-8">
+                <button id="replay-btn"
+                    class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all transform hover:-translate-y-1">Replay
+                    Deck</button>
+                <a href="{% url 'upload' %}"
+                    class="block w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200">Upload
+                    New List</a>
             </div>
         </div>
     </div>

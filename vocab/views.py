@@ -21,15 +21,17 @@ def upload_view(request):
                         file_name=file.name
                     )
                     
+                    vocab_objects = []
                     for item in parsed_data:
                         meanings = item['meanings']
-                        Vocabulary.objects.create(
+                        vocab_objects.append(Vocabulary(
                             word_list=word_list,
                             word=item['word'],
                             meaning_1=meanings[0] if len(meanings) > 0 else "",
                             meaning_2=meanings[1] if len(meanings) > 1 else None,
                             meaning_3=meanings[2] if len(meanings) > 2 else None,
-                        )
+                        ))
+                    Vocabulary.objects.bulk_create(vocab_objects)
                     return redirect('game')
                 else:
                     form.add_error('file', 'No valid data found in file.')
@@ -37,7 +39,30 @@ def upload_view(request):
                 form.add_error('file', f'Error parsing file: {str(e)}')
     else:
         form = UploadFileForm()
-    return render(request, 'upload.html', {'form': form})
+    
+    word_lists = WordList.objects.all().order_by('-id')
+    review_count = Vocabulary.objects.filter(is_known=False).count()
+    
+    context = {
+        'form': form,
+        'word_lists': word_lists,
+        'review_count': review_count
+    }
+    return render(request, 'upload.html', context)
+
+def delete_list_view(request, list_id):
+    if request.method == 'POST':
+        password = request.POST.get('password')
+        if password != 'sujandaijindabaad':
+            # You might want to handle this better, e.g. with a message
+            return redirect('upload')
+            
+        try:
+            word_list = WordList.objects.get(id=list_id)
+            word_list.delete()
+        except WordList.DoesNotExist:
+            pass
+    return redirect('upload')
 
 def game_view(request):
     return render(request, 'game.html')
@@ -65,14 +90,14 @@ def card_list_api(request):
     list_id = request.GET.get('list_id')
     
     if list_id == 'review':
-        cards = Vocabulary.objects.filter(is_known=False)
+        cards = Vocabulary.objects.filter(is_known=False).order_by('?')
     elif list_id:
-        cards = Vocabulary.objects.filter(word_list_id=list_id)
+        cards = Vocabulary.objects.filter(word_list_id=list_id).order_by('?')
     else:
         # Default to most recent list
         latest_list = WordList.objects.first()
         if latest_list:
-            cards = Vocabulary.objects.filter(word_list=latest_list)
+            cards = Vocabulary.objects.filter(word_list=latest_list).order_by('?')
         else:
             cards = Vocabulary.objects.none()
 

@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const replayBtn = document.getElementById('replay-btn');
     const completionScreen = document.getElementById('completion-screen');
     const gameContainer = document.getElementById('game-container');
-    const listSelection = document.getElementById('list-selection');
     const completionMessage = document.getElementById('completion-message');
 
     let cards = [];
@@ -18,43 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentListId = null;
     const swipeThreshold = 100;
 
-    async function fetchLists() {
-        try {
-            const response = await fetch('/api/lists/');
-            const lists = await response.json();
-            renderLists(lists);
-            if (lists.length > 0 && !currentListId) {
-                // If there's a review list, select it first, otherwise the first real list
-                const defaultList = lists.find(l => l.id === 'review') || lists[0];
-                selectList(defaultList.id);
-            }
-        } catch (error) {
-            console.error('Failed to fetch lists:', error);
-        }
-    }
-
-    function renderLists(lists) {
-        listSelection.innerHTML = '';
-        lists.forEach(list => {
-            const btn = document.createElement('button');
-            btn.className = `w-full text-left px-4 py-3 rounded-xl transition-all font-medium flex justify-between items-center ${currentListId == list.id ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-slate-600 hover:bg-slate-50'}`;
-            btn.innerHTML = `
-                <span>${list.name}</span>
-                <span class="text-xs bg-slate-100 px-2 py-1 rounded-md text-slate-400">${list.count}</span>
-            `;
-            btn.addEventListener('click', () => selectList(list.id));
-            listSelection.appendChild(btn);
-        });
-    }
-
-    async function selectList(listId) {
-        currentListId = listId;
-        currentIndex = 0;
-        completionScreen.classList.add('hidden');
-        cardStack.classList.remove('hidden');
-        await fetchCards();
-        await fetchLists(); // Refresh counts
-    }
+    const urlParams = new URLSearchParams(window.location.search);
+    currentListId = urlParams.get('list_id');
 
     async function fetchCards() {
         try {
@@ -260,5 +224,5 @@ document.addEventListener('DOMContentLoaded', () => {
         renderStack();
     });
 
-    fetchLists();
+    fetchCards();
 });
