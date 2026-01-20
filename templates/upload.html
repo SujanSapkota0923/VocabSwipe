@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-12">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-extrabold mb-4 tracking-tight">Expand Your <span
+                class="gradient-text">Vocabulary</span></h1>
+        <p class="text-slate-500 text-lg">Upload your word list and start learning with our interactive swipe game.</p>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 border border-slate-100">
+        <form method="post" enctype="multipart/form-data" id="upload-form" class="space-y-6">
+            {% csrf_token %}
+
+            <div id="drop-zone"
+                class="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center transition-all hover:border-indigo-400 hover:bg-slate-50 group cursor-pointer">
+                <div class="mb-4">
+                    <svg class="mx-auto h-12 w-12 text-slate-400 group-hover:text-indigo-500 transition-colors"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                </div>
+                <p class="text-slate-600 font-medium">Click or drag & drop your files here</p>
+                <p class="text-slate-400 text-sm mt-1">Supports .txt, .csv, .xlsx</p>
+                <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.xlsx">
+            </div>
+
+            <div id="file-selected"
+                class="hidden flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <span id="file-name" class="text-sm font-medium text-slate-700 truncate max-w-[80%]"></span>
+                <button type="button" id="remove-file" class="text-red-500 hover:text-red-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            {% if form.file.errors %}
+            <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">
+                {{ form.file.errors }}
+            </div>
+            {% endif %}
+
+            <div class="space-y-4 pt-4">
+                <h3 class="font-bold text-slate-800">File Format Guide</h3>
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <code class="text-sm text-slate-600">word, meaning_1; meaning_2; meaning_3</code>
+                    <p class="text-xs text-slate-400 mt-2 italic">Separated by semicolon (up to 3 meanings)</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="text-xs p-3 rounded-lg border border-slate-100 bg-white">
+                        <strong class="block mb-1 text-slate-700">Example 1</strong>
+                        ignore, to intentionally pay no attention
+                    </div>
+                    <div class="text-xs p-3 rounded-lg border border-slate-100 bg-white">
+                        <strong class="block mb-1 text-slate-700">Example 2</strong>
+                        run, to move quickly; to manage
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn"
+                class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                Start Learning Now
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileSelected = document.getElementById('file-selected');
+    const fileName = document.getElementById('file-name');
+    const removeFile = document.getElementById('remove-file');
+    const submitBtn = document.getElementById('submit-btn');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-400', 'bg-slate-50');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-indigo-400', 'bg-slate-50');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-400', 'bg-slate-50');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect();
+        }
+    });
+
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+        if (fileInput.files.length) {
+            fileName.textContent = fileInput.files[0].name;
+            fileSelected.classList.remove('hidden');
+            dropZone.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
+    }
+
+    removeFile.addEventListener('click', () => {
+        fileInput.value = '';
+        fileSelected.classList.add('hidden');
+        dropZone.classList.remove('hidden');
+        submitBtn.disabled = true;
+    });
+
+    // Handle form submission loading state
+    document.getElementById('upload-form').addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline shadow-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+        `;
+    });
+</script>
+{% endblock %}

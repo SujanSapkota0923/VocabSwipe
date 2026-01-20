@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+.Python
+pip-log.txt
+pip-delete-this-commit.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.mo
+*.pot
+*.log
+[Pp]ipfile.lock  # Recommend including in version control but commented here as an option
+
+# Virtual environment
+venv/
+env/
+myenv/
+.venv/
+.env/
+bin/
+include/
+lib/
+lib64/
+
+# Django-specific
+# Database
+db.sqlite3
+*.sqlite3
+/data/
+/media/ # Optional: If you manage uploaded media with a deployment tool.
+staticfiles/ # Optional: If you use collectstatic in a deployment script.
+
+# IDE-specific (adjust for your IDE)
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Operating System files
+.DS_Store
+.Trash/
+*.swp

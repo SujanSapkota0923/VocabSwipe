@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabSwipe - Master Words Effortlessly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col">
+    <nav class="py-6 px-4 md:px-8 flex justify-between items-center glass sticky top-0 z-50">
+        <a href="{% url 'upload' %}" class="text-2xl font-bold gradient-text">VocabSwipe</a>
+        <div class="space-x-4">
+            <a href="{% url 'upload' %}" class="text-sm font-medium hover:text-indigo-600 transition-colors">Upload</a>
+            <a href="{% url 'game' %}" class="bg-indigo-600 text-white px-5 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105">Start Game</a>
+        </div>
+    </nav>
+
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="py-8 text-center text-slate-400 text-sm border-t border-slate-100">
+        &copy; 2026 VocabSwipe. Powered by Sujan Sapkota.
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
