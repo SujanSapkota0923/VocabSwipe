@@ -14,15 +14,23 @@ document.addEventListener('DOMContentLoaded', () => {
     let startY = 0;
     let currentX = 0;
     let currentY = 0;
-    let currentListId = null;
     const swipeThreshold = 100;
 
     const urlParams = new URLSearchParams(window.location.search);
-    currentListId = urlParams.get('list_id');
+    const reviewMode = urlParams.get('review_mode');
+    const currentListId = urlParams.get('list_id');
 
     async function fetchCards() {
         try {
-            const url = currentListId ? `/api/cards/?list_id=${currentListId}` : '/api/cards/';
+            let url = '/api/cards/';
+            const params = new URLSearchParams();
+            if (currentListId) params.append('list_id', currentListId);
+            if (reviewMode) params.append('review_mode', reviewMode);
+
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
             const response = await fetch(url);
             cards = await response.json();
             updateProgress();
@@ -45,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showCompletion() {
         cardStack.classList.add('hidden');
         completionScreen.classList.remove('hidden');
-        if (currentListId === 'review') {
+        if (reviewMode) {
             completionMessage.textContent = "You've finished your review! All caught up.";
         } else {
             completionMessage.textContent = "You've finished the entire deck. Ready for another round?";

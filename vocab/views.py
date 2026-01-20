@@ -40,13 +40,15 @@ def upload_view(request):
     else:
         form = UploadFileForm()
     
-    word_lists = WordList.objects.all().order_by('-id')
-    review_count = Vocabulary.objects.filter(is_known=False).count()
+    from django.db.models import Count, Q
+    
+    word_lists = WordList.objects.annotate(
+        unknown_count=Count('words', filter=Q(words__is_known=False))
+    ).order_by('-id')
     
     context = {
         'form': form,
         'word_lists': word_lists,
-        'review_count': review_count
     }
     return render(request, 'upload.html', context)
 
@@ -76,30 +78,21 @@ def list_word_lists_api(request):
             'name': l.name,
             'count': l.words.count()
         })
-    # Add a virtual "Review" list for "Don't Know" words
-    review_count = Vocabulary.objects.filter(is_known=False).count()
-    if review_count > 0:
-        data.insert(0, {
-            'id': 'review',
-            'name': 'Needs Review (Don\'t Know)',
-            'count': review_count
-        })
     return JsonResponse(data, safe=False)
 
 def card_list_api(request):
     list_id = request.GET.get('list_id')
+    review_mode = request.GET.get('review_mode') == 'true'
     
-    if list_id == 'review':
-        cards = Vocabulary.objects.filter(is_known=False).order_by('?')
-    elif list_id:
-        cards = Vocabulary.objects.filter(word_list_id=list_id).order_by('?')
-    else:
-        # Default to most recent list
-        latest_list = WordList.objects.first()
-        if latest_list:
-            cards = Vocabulary.objects.filter(word_list=latest_list).order_by('?')
-        else:
-            cards = Vocabulary.objects.none()
+    cards = Vocabulary.objects.all()
+
+    if list_id:
+        cards = cards.filter(word_list_id=list_id)
+    
+    if review_mode:
+        cards = cards.filter(is_known=False)
+        
+    cards = cards.order_by('?')
 
     data = []
     for card in cards:
