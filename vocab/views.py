@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .forms import UploadFileForm
@@ -55,7 +56,7 @@ def upload_view(request):
 def delete_list_view(request, list_id):
     if request.method == 'POST':
         password = request.POST.get('password')
-        if password != 'sujandaijindabaad':
+        if password != settings.API_PASSWORD:
             # You might want to handle this better, e.g. with a message
             return redirect('upload')
             

@@ -18,6 +18,8 @@ class Vocabulary(models.Model):
     meaning_2 = models.TextField(blank=True, null=True)
     meaning_3 = models.TextField(blank=True, null=True)
     is_known = models.BooleanField(default=False)
+    level = models.IntegerField(default=0)
+    last_reviewed = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

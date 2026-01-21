@@ -20,6 +20,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewMode = urlParams.get('review_mode');
     const currentListId = urlParams.get('list_id');
 
+    function getApiPassword() {
+        let password = localStorage.getItem('api_password');
+        if (!password) {
+            password = prompt('Enter API Password:');
+            if (password) {
+                localStorage.setItem('api_password', password);
+            }
+        }
+        return password;
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+        const password = getApiPassword();
+        if (!password) return null;
+
+        const defaultOptions = {
+            headers: {
+                'X-Api-Password': password,
+                'Content-Type': 'application/json'
+            }
+        };
+
+        const mergedOptions = {
+            ...options,
+            headers: {
+                ...defaultOptions.headers,
+                ...(options.headers || {})
+            }
+        };
+
+        const response = await fetch(url, mergedOptions);
+
+        if (response.status === 401) {
+            localStorage.removeItem('api_password');
+            alert('Invalid password. Please try again.');
+            window.location.reload();
+            return null;
+        }
+
+        return response;
+    }
+
     async function fetchCards() {
         try {
             let url = '/api/cards/';
@@ -31,7 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 url += `?${params.toString()}`;
             }
 
-            const response = await fetch(url);
+            const response = await fetchWithAuth(url);
+            if (!response) return;
+
             cards = await response.json();
             updateProgress();
             renderStack();
@@ -189,9 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isKnown = direction > 0;
 
         // Update status in background
-        fetch(`/api/cards/${cardId}/status/`, {
+        fetchWithAuth(`/api/cards/${cardId}/status/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_known: isKnown })
         }).catch(err => console.error("Failed to update status", err));
 
