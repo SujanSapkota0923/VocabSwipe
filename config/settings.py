@@ -29,8 +29,6 @@ DEBUG = True
 # let all can access this website from any ip address
 ALLOWED_HOSTS = ['*']
 
-API_PASSWORD = 'sujandaijindabaad'
-
 
 
 # Application definition
@@ -53,7 +51,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'vocab.middleware.ApiAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -126,5 +123,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Auth
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -1,6 +1,5 @@
-import pandas as pd
-import io
 import csv
+import io
 
 def parse_vocabulary_file(file):
     ext = file.name.split('.')[-1].lower()
@@ -49,7 +48,9 @@ def parse_vocabulary_file(file):
             if word and word.lower() != 'word':
                 data.append({'word': word, 'meanings': meanings})
                 
-    elif ext == 'xlsx':
+    elif ext in ('xlsx', 'xls'):
+        import pandas as pd  # optional dependency, only needed for spreadsheets
+
         file.seek(0)
         try:
             df = pd.read_excel(file, header=None)

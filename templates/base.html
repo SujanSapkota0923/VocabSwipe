@@ -1,50 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VocabSwipe - Master Words Effortlessly</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
+    <title>{% block title %}VocabSwipe{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <style>
         body {
             font-family: 'Outfit', sans-serif;
             background: #f8fafc;
             color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
         }
+
         .glass {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.75);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
         }
+
         .gradient-bg {
             background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         }
+
         .gradient-text {
             background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
+
 <body class="min-h-screen flex flex-col">
-    <nav class="py-6 px-4 md:px-8 flex justify-between items-center glass sticky top-0 z-50">
-        <a href="{% url 'upload' %}" class="text-2xl font-bold gradient-text">VocabSwipe</a>
-        <div class="space-x-4">
-            <a href="{% url 'upload' %}" class="text-sm font-medium hover:text-indigo-600 transition-colors">Upload</a>
-            <a href="{% url 'game' %}" class="bg-indigo-600 text-white px-5 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all hover:scale-105">Start Game</a>
+    <nav class="py-4 px-4 md:px-8 flex justify-between items-center gap-3 glass sticky top-0 z-50">
+        <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}"
+            class="text-xl md:text-2xl font-bold gradient-text shrink-0">VocabSwipe</a>
+
+        {% if user.is_authenticated %}
+        <div class="flex items-center gap-2 md:gap-4">
+            <span class="hidden sm:inline text-sm text-slate-500">Hi, <strong
+                    class="text-slate-700">{{ user.username }}</strong></span>
+            <a href="{% url 'dashboard' %}"
+                class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">My Lists</a>
+            <a href="{% url 'game' %}"
+                class="gradient-bg text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200/60 hover:scale-105 transition-all">Play</a>
+            <form action="{% url 'logout' %}" method="post" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                    class="text-sm text-slate-400 hover:text-red-500 transition-colors">Logout</button>
+            </form>
         </div>
+        {% else %}
+        <div class="flex items-center gap-3">
+            <a href="{% url 'login' %}"
+                class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">Log in</a>
+            <a href="{% url 'signup' %}"
+                class="gradient-bg text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200/60 hover:scale-105 transition-all">Sign
+                up</a>
+        </div>
+        {% endif %}
     </nav>
+
+    {% if messages %}
+    <div class="max-w-3xl w-full mx-auto px-4 pt-4 space-y-2">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded-xl text-sm border {% if message.tags == 'error' %}bg-red-50 text-red-600 border-red-100{% else %}bg-green-50 text-green-700 border-green-100{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <main class="flex-grow">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-8 text-center text-slate-400 text-sm border-t border-slate-100">
+    <footer class="py-6 text-center text-slate-400 text-sm border-t border-slate-100 safe-bottom">
         &copy; 2026 VocabSwipe. Powered by Sujan Sapkota.
     </footer>
 
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
