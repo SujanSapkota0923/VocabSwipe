@@ -1,0 +1,300 @@
+
+
+When external resistance (R) is connected to a cell of internal resistance (r), the maximum current flows in the external resistance when
+A. (R < r)
+B. (R > r)
+C. (R = r)
+D. Any value of (R)
+
+If the surface charge density is (\sigma), then electric field near the surface of a sphere will be
+A. (\frac{\sigma}{\varepsilon_0})
+B. (\frac{\sigma}{2\varepsilon_0})
+C. (\frac{\sigma}{4\varepsilon_0})
+D. (\frac{\sigma}{8\varepsilon_0})
+
+A box is placed on an inclined plane and has to be pushed down, the angle of inclination is
+A. Equal to angle of friction
+B. More than angle of friction
+C. Equal to angle of repose
+D. Less than angle of repose
+
+A body is moved along a straight line by a machine delivering constant power, the distance moved by the body is proportional to
+A. (t^{1/2})
+B. (t^{3/4})
+C. (t^{3/2})
+D. (t^2)
+
+The temperature on Celsius scale is (25^\circ C), what is the corresponding temperature on Fahrenheit scale
+A. (40^\circ F)
+B. (77^\circ F)
+C. (50^\circ F)
+D. (45^\circ F)
+
+If temperature scale is changed from (^\circ C) to (^\circ F), the numerical value of specific heat will
+A. Increase
+B. Decrease
+C. Remain unchanged
+D. None of the above
+
+In order to observe full height (h) of a person in a plane mirror, the minimum height of mirror should be
+A. (h)
+B. (h/2)
+C. (h/3)
+D. (2h)
+
+If the displacement of the particle is zero, the distance covered
+A. Cannot be zero
+B. Must be zero
+C. May or may not be zero
+D. Cannot be predicted
+
+If (A) and (B) are two sets such that (A \subset B), which of the following is false
+A. (A - B = \varnothing)
+B. (B - A \neq \varnothing)
+C. (A \cup B = A)
+D. (A \cap B = B)
+
+Direction cosines of negative x-axis are
+A. (1, 0, 0)
+B. (0, -1, 0)
+C. (-1, 0, 0)
+D. (-1, 1, 1)
+
+Angle between the pair of lines represented by (x^2 - y^2 = 0) is
+A. (0^\circ)
+B. (45^\circ)
+C. (90^\circ)
+D. (180^\circ)
+
+The conjugate of the complex number (1 + i) is
+A. (2i)
+B. (1 - i)
+C. (-i)
+D. (i)
+
+If the roots of (9x^2 + 4ax + 4 = 0) are imaginary, then (a) lies in
+A. ((0,1))
+B. ((-3,3))
+C. ((4,9))
+D. ((-1,1))
+
+The sum of 50 arithmetic means between 2 and 100 is
+A. 2010
+B. 2550
+C. 2642
+D. 3000
+
+If (\log_a 5 \cdot \log_x a = 3), then (x) is equal to
+A. 125
+B. (a^2)
+C. 25
+D. 225
+
+The centroid of the triangle whose vertices are ((2,0)), ((4,4)), and ((6,2)) is
+A. ((4,2))
+B. ((2,4))
+C. ((-4,-2))
+D. ((2,-4))
+
+The pair of lines (ex^2 + 2bxy + e^{-1}y^2 = 0) are coincident if
+A. (b = 0)
+B. (b = 1)
+C. (e = 1) and (h = 0)
+D. (e > 0) and (h < 0)
+
+The second derivative of (y = 5x^5 - 3x^3 + 5) is
+A. (100x^4 - 36x)
+B. (100x^3 - 36x)
+C. (100x^3 - 18x)
+D. (100x^3 - 9x)
+
+The oxidation state of sulphur in (H_2S_2O_8) is
+A. 5
+B. 6
+C. 7
+D. 8
+
+The number of electrons present in one mole of water is
+A. (1N_A)
+B. (2N_A)
+C. (5N_A)
+D. (10N_A)
+
+Total number of vertical columns present in p-block is
+A. 6
+B. 7
+C. 8
+D. 9
+
+The X-ray scattering experiment proved the existence of
+A. Proton
+B. Neutron
+C. Nucleus
+D. Electron
+
+Electrometallurgy is employed for the extraction of
+A. Cu
+B. Fe
+C. Na
+D. Ag
+
+Which of the following is used as a reducing agent in smelting
+A. C
+B. Al
+C. Zn
+D. Fe
+
+The IUPAC name of (CH_3 - C \equiv C - CH(CH_3)_2) is
+A. 4-methyl-2-pentyne
+B. Methyl isopropyl acetylene
+C. 4,4-dimethyl-2-butyne
+D. 2-methyl-4-pentyne
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The speed of a man with water current and against water current is 15 km/hr and 5 km/hr respectively, the speed of water is
+A. 15 km/hr
+B. 10 km/hr
+C. 5 km/hr
+D. 2.5 km/hr
+
+(4 \times 10^{20},\text{eV}) of energy is required to move a charge of 0.25 C between two points, the potential difference between the points is
+A. 64 V
+B. 128 V
+C. 256 V
+D. 512 V
+
+An object is placed 0.4 m from a convex mirror and a plane mirror is placed at a distance of 0.36 m from the object, the images formed by the two mirrors coincide, the focal length of the convex mirror is
+A. 3.2 m
+B. 3.3 m
+C. 3.4 m
+D. 3.6 m
+
+A uniform copper wire of mass (2.23 \times 10^{-3},\text{kg}) carries a current of 1 A when 1.7 V is applied across it, the length of the wire having density (8.9 \times 10^3,\text{kg m}^{-3}) and resistivity (1.7 \times 10^{-8},\Omega,\text{m}) is
+A. 1.5 m
+B. 2.5 m
+C. 5 m
+D. 7.5 m
+
+A body is projected vertically upwards and the times corresponding to height (h) during ascent and descent are (t_1) and (t_2), the velocity of projection is
+A. (\frac{g(t_1+t_2)}{2})
+B. (\frac{g(t_1-t_2)}{2})
+C. (g(t_1+t_2))
+D. (g(t_1-t_2))
+
+An aeroplane flying horizontally with a speed of 180 km/hr drops a food packet from a height of 490 m, the horizontal range is
+A. 180 m
+B. 980 m
+C. 500 m
+D. 670 m
+
+A ball falls from a height of 10 m and rebounds to a height of 2.5 m, if the duration of contact with the floor is 0.01 s, the average acceleration during contact is
+A. (2100,\text{m/s}^2)
+B. (1400,\text{m/s}^2)
+C. (700,\text{m/s}^2)
+D. (400,\text{m/s}^2)
+
+The range of the function (f(x)=\frac{1}{1+\cos x}) is
+A. ((-\infty,\infty))
+B. ([-1,1])
+C. ([2,4])
+D. ([1,\infty))
+
+If (i^x = 1), then the value of (x) is
+A. (2n,; n \in \mathbb{Z})
+B. (4n,; n \in \mathbb{Z})
+C. (2n+1,; n \in \mathbb{Z})
+D. (4n+1,; n \in \mathbb{Z})
+
+The pair of straight lines joining the origin to the points of intersection of the parabola (y^2 = 4ax) and the line (y = mx + c) are at right angles if
+A. (-4am)
+B. (0)
+C. (\pm a)
+D. (4am)
+
+If the sum of roots of the equation (x^2 + px + q = 0) is three times their difference, then
+A. (2p^2 = 9q)
+B. (9p^2 = 2q)
+C. (2q^2 = 9p)
+D. (9q^2 = 2p)
+
+The function (y = x^3 + 3x^2 - 9x + 25) has a point of inflection at
+A. (x = -2)
+B. (x = 3)
+C. (x = 1)
+D. (x = -1)
+
+If (\sin(x+y) = \log(x+y)), then (\cos(x+y)) is equal to
+A. 2
+B. (-2)
+C. 1
+D. (-1)
+
+If the sum of the first 20 terms of an A.P. is equal to the sum of the first 30 terms, then the sum of the first 50 terms is
+A. (-1)
+B. 0
+C. 10
+D. 25
+
+A counting machine counts (10^5) molecules of (H_2) in 1 second, the time required to count the number of molecules present in 1 g of (H_2) is
+A. (8.55 \times 10^{10}) years
+B. (9.00 \times 10^{10}) years
+C. (9.55 \times 10^{10}) years
+D. (8.00 \times 10^{10}) years
+
+If the pressure and absolute temperature of 2 litres of (CO_2) are doubled, the final volume of the gas is
+A. 2 litres
+B. 4 litres
+C. 5 litres
+D. 7 litres
+
+What mass of calcium chloride is required to produce 14.35 g of silver chloride given atomic masses (Ca = 40) and (Ag = 108)
+A. 5.55 g
+B. 8.295 g
+C. 16.59 g
+D. 11.19 g
+
+Why do many local people look hungrily at the game reserves
+A. They seek land for their own cultivation
+B. The animals are dangerous to villages
+C. They dislike living in deserted places
+D. They want to eat the animals
+
+What is causing soil erosion in the game reserves
+A. Tropical heat
+B. Loss of vegetation eaten by animals
+C. Violent storms
+D. Loss of fear of man
+
+Why does the government maintain game reserves according to the passage
+A. To stop people from using land
+B. To control vegetation
+C. To obtain income from tourism
+D. To beautify the country
+
+
+
+
+
+
+
+
+
+
+
+
+
+

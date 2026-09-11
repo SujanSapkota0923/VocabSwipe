@@ -1,196 +1,255 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block extra_css %}
+{% extends 'base.html' %} {% load static %} {% block extra_css %}
 <style>
-    body {
-        overscroll-behavior: none;
-    }
+  body {
+    overscroll-behavior: none;
+  }
 
-    .card-container {
-        perspective: 1000px;
-        width: 100%;
-        max-width: 400px;
-        height: 600px;
-        position: relative;
-        margin: 0 auto;
-        touch-action: none;
-    }
+  .card-container {
+    perspective: 1000px;
+    width: 100%;
+    max-width: 400px;
+    height: 600px;
+    position: relative;
+    margin: 0 auto;
+    touch-action: none;
+  }
 
-    .vocab-card {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        cursor: grab;
-        transform-origin: center bottom;
-        transition: transform 0.1s ease-out, opacity 0.1s ease-out;
-        user-select: none;
-        touch-action: none;
-    }
+  .vocab-card {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    cursor: grab;
+    transform-origin: center bottom;
+    transition:
+      transform 0.1s ease-out,
+      opacity 0.1s ease-out;
+    user-select: none;
+    touch-action: none;
+  }
 
-    .vocab-card:active {
-        cursor: grabbing;
-    }
+  .vocab-card:active {
+    cursor: grabbing;
+  }
 
-    .card-inner {
-        width: 100%;
-        height: 100%;
-        position: relative;
-        transform-style: preserve-3d;
-        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+  .card-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-    .card-inner.is-flipped {
-        transform: rotateY(180deg);
-    }
+  .card-inner.is-flipped {
+    transform: rotateY(180deg);
+  }
 
-    .card-face {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        backface-visibility: hidden;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 2rem;
-        border-radius: 2rem;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    border-radius: 2rem;
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
 
-    .card-front {
-        background: white;
-    }
+  .card-front {
+    background: white;
+  }
 
-    .card-back {
-        background: #fdf2f8;
-        /* Soft pink/indigo-50 back */
-        transform: rotateY(180deg);
-        overflow-y: auto;
-    }
+  .card-back {
+    background: #fdf2f8;
+    /* Soft pink/indigo-50 back */
+    transform: rotateY(180deg);
+    overflow-y: auto;
+  }
 
-    .swipe-indicator {
-        position: absolute;
-        top: 2rem;
-        padding: 0.5rem 1rem;
-        border: 4px solid;
-        border-radius: 0.5rem;
-        font-weight: 800;
-        font-size: 2rem;
-        opacity: 0;
-        transition: opacity 0.1s;
-        z-index: 10;
-        text-transform: uppercase;
-    }
+  .swipe-indicator {
+    position: absolute;
+    top: 2rem;
+    padding: 0.5rem 1rem;
+    border: 4px solid;
+    border-radius: 0.5rem;
+    font-weight: 800;
+    font-size: 2rem;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 10;
+    text-transform: uppercase;
+  }
 
-    .swipe-right .swipe-indicator.know {
-        opacity: 1;
-        color: #22c55e;
-        border-color: #22c55e;
-        left: 2rem;
-        transform: rotate(-20deg);
-    }
+  .swipe-right .swipe-indicator.know {
+    opacity: 1;
+    color: #22c55e;
+    border-color: #22c55e;
+    left: 2rem;
+    transform: rotate(-20deg);
+  }
 
-    .swipe-left .swipe-indicator.dont-know {
-        opacity: 1;
-        color: #ef4444;
-        border-color: #ef4444;
-        right: 2rem;
-        transform: rotate(20deg);
-    }
+  .swipe-left .swipe-indicator.dont-know {
+    opacity: 1;
+    color: #ef4444;
+    border-color: #ef4444;
+    right: 2rem;
+    transform: rotate(20deg);
+  }
 
-    /* Stack effect */
-    .vocab-card:nth-last-child(2) {
-        transform: translateZ(-30px) translateY(10px) scale(0.95);
-        opacity: 0.8;
-    }
+  /* Stack effect */
+  .vocab-card:nth-last-child(2) {
+    transform: translateZ(-30px) translateY(10px) scale(0.95);
+    opacity: 0.8;
+  }
 
-    .vocab-card:nth-last-child(3) {
-        transform: translateZ(-60px) translateY(20px) scale(0.9);
-        opacity: 0.6;
-    }
+  .vocab-card:nth-last-child(3) {
+    transform: translateZ(-60px) translateY(20px) scale(0.9);
+    opacity: 0.6;
+  }
 
-    .vocab-card:nth-last-child(n+4) {
-        transform: translateZ(-90px) translateY(30px) scale(0.85);
-        opacity: 0;
-    }
+  .vocab-card:nth-last-child(n + 4) {
+    transform: translateZ(-90px) translateY(30px) scale(0.85);
+    opacity: 0;
+  }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
-    <div class="flex justify-between items-center mb-8">
-        <div>
-            <a href="{% url 'upload' %}"
-                class="inline-flex items-center text-slate-500 hover:text-indigo-600 font-bold mb-2 transition-colors">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                </svg>
-                Change List
-            </a>
-            <div id="progress-container" class="flex items-center space-x-2">
-                <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div id="progress-bar" class="h-full gradient-bg w-0 transition-all duration-300"></div>
-                </div>
-                <span id="progress-text" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">0 /
-                    0</span>
-            </div>
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <a
+        href="{% url 'upload' %}"
+        class="inline-flex items-center text-slate-500 hover:text-indigo-600 font-bold mb-2 transition-colors"
+      >
+        <svg
+          class="w-4 h-4 mr-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          ></path>
+        </svg>
+        Change List
+      </a>
+      <div id="progress-container" class="flex items-center space-x-2">
+        <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div
+            id="progress-bar"
+            class="h-full gradient-bg w-0 transition-all duration-300"
+          ></div>
         </div>
-        <button id="restart-btn"
-            class="flex items-center space-x-2 text-slate-500 hover:text-indigo-600 transition-colors font-medium">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                </path>
-            </svg>
-            <span>Restart deck</span>
+        <span
+          id="progress-text"
+          class="text-xs font-semibold text-slate-400 uppercase tracking-wider"
+          >0 / 0</span
+        >
+      </div>
+    </div>
+
+    <!-- Streak Counter -->
+    <div
+      id="streak-badge"
+      class="hidden flex items-center bg-orange-50 text-orange-600 px-4 py-2 rounded-full font-bold shadow-sm shadow-orange-100 border border-orange-100"
+    >
+      <span class="mr-1 text-lg">🔥</span>
+      <span id="streak-count">0</span>
+    </div>
+
+    <button
+      id="restart-btn"
+      class="flex items-center space-x-2 text-slate-500 hover:text-indigo-600 transition-colors font-medium"
+    >
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        ></path>
+      </svg>
+      <span>Restart deck</span>
+    </button>
+  </div>
+
+  <div id="game-container" class="max-w-md mx-auto relative">
+    <div id="card-stack" class="card-container">
+      <!-- Cards will be injected here -->
+    </div>
+
+    <!-- Completion Screen (hidden initially) -->
+    <div
+      id="completion-screen"
+      class="hidden text-center py-20 bg-white rounded-3xl shadow-xl border border-slate-100 max-w-md mx-auto"
+    >
+      <div class="mb-6 inline-flex p-4 bg-green-50 rounded-full text-green-500">
+        <svg
+          class="w-16 h-16"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+      </div>
+      <h2 class="text-3xl font-extrabold mb-2">Great job!</h2>
+      <p id="completion-message" class="text-slate-500 mb-8 px-8">
+        You've finished the entire deck. Ready for another round?
+      </p>
+      <div class="space-y-3 px-8">
+        <button
+          id="replay-btn"
+          class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all transform hover:-translate-y-1"
+        >
+          Replay Deck
         </button>
+        <a
+          href="{% url 'upload' %}"
+          class="block w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200"
+          >Upload New List</a
+        >
+      </div>
     </div>
+  </div>
 
-    <div id="game-container" class="max-w-md mx-auto relative">
-        <div id="card-stack" class="card-container">
-            <!-- Cards will be injected here -->
-        </div>
-
-        <!-- Completion Screen (hidden initially) -->
-        <div id="completion-screen"
-            class="hidden text-center py-20 bg-white rounded-3xl shadow-xl border border-slate-100 max-w-md mx-auto">
-            <div class="mb-6 inline-flex p-4 bg-green-50 rounded-full text-green-500">
-                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-            </div>
-            <h2 class="text-3xl font-extrabold mb-2">Great job!</h2>
-            <p id="completion-message" class="text-slate-500 mb-8 px-8">You've finished the entire deck. Ready for
-                another round?</p>
-            <div class="space-y-3 px-8">
-                <button id="replay-btn"
-                    class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all transform hover:-translate-y-1">Replay
-                    Deck</button>
-                <a href="{% url 'upload' %}"
-                    class="block w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold transition-all hover:bg-slate-200">Upload
-                    New List</a>
-            </div>
-        </div>
+  <!-- Controls Label -->
+  <div
+    class="mt-12 flex justify-center space-x-8 text-slate-400 font-medium text-sm"
+  >
+    <div class="flex items-center space-x-2">
+      <span
+        class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs"
+        >←</span
+      >
+      <span>Don't know</span>
     </div>
-
-    <!-- Controls Label -->
-    <div class="mt-12 flex justify-center space-x-8 text-slate-400 font-medium text-sm">
-        <div class="flex items-center space-x-2">
-            <span class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs">←</span>
-            <span>Don't know</span>
-        </div>
-        <div class="flex items-center space-x-2">
-            <span class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs">→</span>
-            <span>Know it</span>
-        </div>
+    <div class="flex items-center space-x-2">
+      <span
+        class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs"
+        >→</span
+      >
+      <span>Know it</span>
     </div>
+  </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
+{% endblock %} {% block extra_js %}
 <script src="{% static 'js/game.js' %}"></script>
 {% endblock %}

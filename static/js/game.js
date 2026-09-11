@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const completionScreen = document.getElementById('completion-screen');
     const gameContainer = document.getElementById('game-container');
     const completionMessage = document.getElementById('completion-message');
+    const streakBadge = document.getElementById('streak-badge');
+    const streakCount = document.getElementById('streak-count');
 
     let cards = [];
     let currentIndex = 0;
@@ -62,6 +64,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return response;
     }
 
+    async function fetchStats() {
+        try {
+            const response = await fetchWithAuth('/api/user-stats/');
+            if (!response) return;
+            const stats = await response.json();
+            updateStreakUI(stats.current_streak);
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+        }
+    }
+
+    function updateStreakUI(streak) {
+        if (streak > 0) {
+            streakBadge.classList.remove('hidden');
+            streakCount.textContent = streak;
+        } else {
+            streakBadge.classList.add('hidden');
+        }
+    }
+
     async function fetchCards() {
         try {
             let url = '/api/cards/';
@@ -116,6 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function playAudio(url) {
+        if (!url) return;
+        const audio = new Audio(url);
+        audio.play().catch(e => console.error("Audio playback failed", e));
+    }
+
     function createCardElement(data, isTop) {
         const card = document.createElement('div');
         card.className = 'vocab-card';
@@ -128,17 +156,39 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `).join('');
 
+        const audioButtonHtml = data.audio_url ? `
+            <button class="audio-btn absolute top-4 right-4 p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors" onclick="event.stopPropagation();">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+            </button>
+        ` : '';
+
+        const exampleHtml = data.example ? `
+            <div class="mt-6 p-4 bg-indigo-50 rounded-xl w-full">
+                <span class="text-xs font-bold text-indigo-400 block mb-2 uppercase tracking-tighter">Example</span>
+                <p class="text-slate-600 italic">"${data.example}"</p>
+            </div>
+        ` : '';
+
         card.innerHTML = `
             <div class="card-inner">
                 <div class="card-face card-front">
                     <div class="swipe-indicator know">Know</div>
                     <div class="swipe-indicator dont-know">Don't Know</div>
+                    ${audioButtonHtml}
                     <h2 class="text-5xl font-black text-slate-800 tracking-tight text-center break-words w-full px-4">${data.word}</h2>
                     <p class="absolute bottom-10 text-slate-300 text-sm font-medium uppercase tracking-widest animate-pulse">Swipe to reveal</p>
                 </div>
                 <div class="card-face card-back">
-                    <div class="w-full space-y-4">
-                        ${meaningsHtml}
+                    <div class="w-full">
+                        <h3 class="text-3xl font-black text-slate-800 tracking-tight text-center break-words mb-4">${data.word}</h3>
+                        <div class="max-h-64 overflow-y-auto w-full px-2">
+                            <div class="space-y-2">
+                                ${meaningsHtml}
+                            </div>
+                            ${exampleHtml}
+                        </div>
                     </div>
                     <div class="absolute bottom-8 w-full px-8">
                         <button class="next-btn w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700">Next Card</button>
@@ -149,6 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isTop) {
             initCardInteractions(card);
+            const audioBtn = card.querySelector('.audio-btn');
+            if (audioBtn) {
+                audioBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    playAudio(data.audio_url);
+                });
+            }
         }
 
         return card;
@@ -236,6 +293,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchWithAuth(`/api/cards/${cardId}/status/`, {
             method: 'POST',
             body: JSON.stringify({ is_known: isKnown })
+        }).then(async res => {
+            if (res) {
+                const data = await res.json();
+                if (data.streak !== undefined) {
+                    updateStreakUI(data.streak);
+                }
+            }
         }).catch(err => console.error("Failed to update status", err));
 
         // Flip and stay
@@ -276,4 +340,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fetchCards();
+    fetchStats();
 });
