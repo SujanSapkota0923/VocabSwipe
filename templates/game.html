@@ -118,6 +118,21 @@
     #progress-bar {
         transition: width 0.12s linear;
     }
+
+    .loading-dot {
+        animation: loading-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes loading-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.25; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .loading-dot {
+            animation: none;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -182,7 +197,20 @@
     </div>
 
     <div id="game-container" class="relative">
-        <div id="card-stack" class="card-container"></div>
+        <div id="card-stack" class="card-container hidden"></div>
+
+        <div id="loading-screen" class="text-center rounded-xl border border-line py-14 px-6">
+            <div class="loading-dot w-2.5 h-2.5 mx-auto mb-4 rounded-sm bg-brand-500"></div>
+            <p class="text-mute text-sm">Loading cards…</p>
+        </div>
+
+        <div id="error-screen" class="hidden text-center rounded-xl border border-line py-14 px-6">
+            <h2 class="text-xl font-semibold mb-2">Could not load the cards</h2>
+            <p class="text-mute text-sm mb-6">Check your connection and try again.</p>
+            <button id="retry-btn"
+                class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Try
+                again</button>
+        </div>
 
         <div id="empty-screen" class="hidden text-center rounded-xl border border-line py-14 px-6">
             <h2 class="text-xl font-semibold mb-2">No words here</h2>

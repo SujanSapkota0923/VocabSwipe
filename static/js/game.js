@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const completionScreen = document.getElementById('completion-screen');
     const completionMessage = document.getElementById('completion-message');
     const emptyScreen = document.getElementById('empty-screen');
+    const loadingScreen = document.getElementById('loading-screen');
+    const errorScreen = document.getElementById('error-screen');
+    const retryBtn = document.getElementById('retry-btn');
     const scoreKnownEl = document.getElementById('score-known');
     const scoreUnknownEl = document.getElementById('score-unknown');
     const timerBar = document.getElementById('timer-bar');
@@ -112,12 +115,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reviewMode) params.append('review_mode', 'true');
         const url = '/api/cards/' + (params.toString() ? `?${params}` : '');
 
+        loadingScreen.classList.remove('hidden');
+        errorScreen.classList.add('hidden');
+        emptyScreen.classList.add('hidden');
+        cardStack.classList.add('hidden');
+
+        let failed = false;
         try {
             const response = await api(url);
+            if (!response.ok) throw new Error(`Request failed with ${response.status}`);
             cards = await response.json();
         } catch (error) {
+            // A dropped connection is not the same as an empty deck, so it gets
+            // its own screen with a retry instead of "No words here".
             console.error('Failed to fetch cards:', error);
             cards = [];
+            failed = true;
+        }
+
+        loadingScreen.classList.add('hidden');
+
+        if (failed) {
+            errorScreen.classList.remove('hidden');
+            return;
         }
 
         if (!isAuthenticated) {
@@ -125,10 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!cards.length) {
-            cardStack.classList.add('hidden');
             emptyScreen.classList.remove('hidden');
             return;
         }
+
+        cardStack.classList.remove('hidden');
         updateProgress();
         renderStack();
         startTimer();
@@ -441,6 +462,15 @@ document.addEventListener('DOMContentLoaded', () => {
             nextCard();
         }
     });
+
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            currentIndex = 0;
+            knownCount = 0;
+            unknownCount = 0;
+            fetchCards();
+        });
+    }
 
     replayBtn.addEventListener('click', () => {
         currentIndex = 0;
