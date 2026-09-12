@@ -49,3 +49,6 @@ staticfiles/ # Optional: If you use collectstatic in a deployment script.
 .DS_Store
 .Trash/
 *.swp
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.agent/rules/snyk_rules.md

@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const timerText = document.getElementById('timer-text');
     const btnKnown = document.getElementById('btn-known');
     const btnUnknown = document.getElementById('btn-unknown');
+    const streakBadge = document.getElementById('streak-badge');
+    const streakCount = document.getElementById('streak-count');
 
     const mode = root.dataset.mode || 'classic';
     const listId = root.dataset.listId || '';
@@ -74,6 +76,34 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             ...options
         });
+    }
+
+    // ---- Streak ----
+
+    function updateStreakUI(streak) {
+        if (!streakBadge) return;
+        if (streak > 0) {
+            streakBadge.classList.remove('hidden');
+            streakCount.textContent = streak;
+        } else {
+            streakBadge.classList.add('hidden');
+        }
+    }
+
+    async function fetchStats() {
+        if (!isAuthenticated) return;
+        try {
+            const response = await api('/api/user-stats/');
+            const stats = await response.json();
+            updateStreakUI(stats.current_streak);
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+        }
+    }
+
+    function playAudio(url) {
+        if (!url) return;
+        new Audio(url).play().catch(err => console.error('Audio playback failed', err));
     }
 
     async function fetchCards() {
@@ -205,6 +235,22 @@ document.addEventListener('DOMContentLoaded', () => {
         hint.textContent = 'Swipe to reveal';
         front.appendChild(hint);
 
+        if (data.audio_url) {
+            const audioBtn = document.createElement('button');
+            audioBtn.type = 'button';
+            audioBtn.className =
+                'audio-btn absolute top-4 right-4 w-9 h-9 rounded-full border border-line text-mute hover:text-brand-600 hover:border-brand-300 transition-colors';
+            audioBtn.setAttribute('aria-label', `Play pronunciation of ${data.word}`);
+            audioBtn.textContent = '♪';
+            audioBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+            audioBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            audioBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                playAudio(data.audio_url);
+            });
+            front.appendChild(audioBtn);
+        }
+
         // Back face
         const back = document.createElement('div');
         back.className = 'card-face card-back';
@@ -236,6 +282,13 @@ document.addEventListener('DOMContentLoaded', () => {
             meaningWrap.appendChild(row);
         });
         back.appendChild(meaningWrap);
+
+        if (data.example) {
+            const example = document.createElement('p');
+            example.className = 'w-full mt-4 text-sm text-mute italic text-center px-2';
+            example.textContent = `“${data.example}”`;
+            back.appendChild(example);
+        }
 
         const nextWrap = document.createElement('div');
         nextWrap.className = 'absolute bottom-5 left-0 w-full px-5';
@@ -335,7 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
             api(`/api/cards/${cardId}/status/`, {
                 method: 'POST',
                 body: JSON.stringify({ is_known: isKnown })
-            }).catch(err => console.error('Failed to update status', err));
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (typeof result.streak === 'number') updateStreakUI(result.streak);
+                })
+                .catch(err => console.error('Failed to update status', err));
         } else {
             if (isKnown) guestKnown.add(cardId); else guestKnown.delete(cardId);
             saveGuestKnown();
@@ -396,4 +454,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     fetchCards();
+    fetchStats();
 });

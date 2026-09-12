@@ -172,9 +172,13 @@
     {% endif %}
 
     <!-- Score -->
-    <div class="flex justify-center gap-6 mb-4 text-sm">
+    <div class="flex justify-center items-center gap-4 mb-4 text-sm">
         <span class="text-brand-600 font-medium">Known <span id="score-known" class="tabular-nums">0</span></span>
         <span class="text-mute">To review <span id="score-unknown" class="tabular-nums">0</span></span>
+        <span id="streak-badge"
+            class="hidden text-xs font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1">
+            <span id="streak-count" class="tabular-nums">0</span> day streak
+        </span>
     </div>
 
     <div id="game-container" class="relative">

@@ -9,7 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import JoinCodeForm, ListSettingsForm, SignupForm, UploadFileForm
-from .models import JoinedList, Vocabulary, WordList, WordProgress
+from .models import JoinedList, UserStats, Vocabulary, WordList, WordProgress
+from .tasks import start_background_processing
 from .utils.parsing import parse_vocabulary_file
 
 GAME_MODES = ('classic', 'timer')
@@ -155,10 +156,13 @@ def dashboard_view(request):
             if upload_form.is_valid():
                 uploaded = request.FILES['file']
                 try:
-                    parsed_data = parse_vocabulary_file(uploaded)
+                    parsed_result = parse_vocabulary_file(uploaded)
                 except Exception as exc:
-                    parsed_data = None
+                    parsed_result = None
                     upload_form.add_error('file', f'Error parsing file: {exc}')
+
+                parsed_data = (parsed_result or {}).get('data')
+                needs_api_fetch = (parsed_result or {}).get('needs_api_fetch', False)
 
                 if parsed_data:
                     word_list = WordList.objects.create(
@@ -167,6 +171,9 @@ def dashboard_view(request):
                         description=upload_form.cleaned_data.get('description', ''),
                         file_name=uploaded.name,
                         is_public=upload_form.cleaned_data.get('is_public', False),
+                        total_words=len(parsed_data),
+                        words_processed=0 if needs_api_fetch else len(parsed_data),
+                        processing_status='pending' if needs_api_fetch else 'completed',
                     )
                     Vocabulary.objects.bulk_create([
                         Vocabulary(
@@ -178,9 +185,18 @@ def dashboard_view(request):
                         )
                         for item in parsed_data
                     ])
-                    messages.success(request, f'Added {len(parsed_data)} words.')
+
+                    if needs_api_fetch:
+                        # Words uploaded without a meaning get one from the dictionary API.
+                        start_background_processing(word_list.id)
+                        messages.success(
+                            request,
+                            f'Added {len(parsed_data)} words. Looking up the missing meanings now.',
+                        )
+                    else:
+                        messages.success(request, f'Added {len(parsed_data)} words.')
                     return redirect('dashboard')
-                elif parsed_data is not None:
+                elif parsed_result is not None:
                     upload_form.add_error('file', 'No valid data found in file.')
 
     known_ids = set(
@@ -204,6 +220,7 @@ def dashboard_view(request):
     joined = decorate(WordList.objects.filter(joined_by__user=request.user).select_related('owner'))
 
     total_words = Vocabulary.objects.filter(word_list__in=accessible_lists(request.user)).count()
+    stats = UserStats.get_stats(request.user)
 
     return render(request, 'dashboard.html', {
         'form': upload_form,
@@ -212,6 +229,7 @@ def dashboard_view(request):
         'joined_lists': joined,
         'total_words': total_words,
         'known_total': len(known_ids),
+        'stats': stats,
     })
 
 
@@ -314,6 +332,7 @@ def list_word_lists_api(request):
             'count': word_list.words.count(),
             'owned': word_list.owner_id == request.user.id,
             'is_public': word_list.is_public,
+            'processing_status': word_list.processing_status,
         }
         for word_list in accessible_lists(request.user)
     ]
@@ -329,12 +348,16 @@ def card_list_api(request):
 
     known_ids = set()
     if request.user.is_authenticated:
-        known_ids = set(
-            WordProgress.objects.filter(user=request.user, is_known=True, vocabulary__in=cards)
-            .values_list('vocabulary_id', flat=True)
-        )
+        progress = WordProgress.objects.filter(user=request.user, vocabulary__in=cards)
+        known_ids = set(progress.filter(is_known=True).values_list('vocabulary_id', flat=True))
+
         if review_mode:
-            cards = cards.exclude(id__in=known_ids)
+            # Drop known words whose next review date has not arrived yet.
+            not_due = set(
+                progress.filter(is_known=True, next_review_date__gt=timezone.now())
+                .values_list('vocabulary_id', flat=True)
+            )
+            cards = cards.exclude(id__in=not_due)
 
     cards = cards.order_by('?')
 
@@ -343,6 +366,8 @@ def card_list_api(request):
             'id': card.id,
             'word': card.word,
             'meanings': card.meanings,
+            'example': card.example_sentence,
+            'audio_url': card.audio_url,
             'is_known': card.id in known_ids,
         }
         for card in cards
@@ -370,14 +395,44 @@ def update_card_status_api(request, card_id):
     is_known = bool(payload.get('is_known', False))
 
     progress, _ = WordProgress.objects.get_or_create(user=request.user, vocabulary=card)
-    progress.is_known = is_known
-    progress.last_reviewed = timezone.now()
-    if is_known:
-        progress.correct_count += 1
-        progress.level += 1
-    else:
-        progress.wrong_count += 1
-        progress.level = 0
+    progress.apply_review(is_known)
     progress.save()
 
-    return JsonResponse({'status': 'success', 'level': progress.level})
+    stats = UserStats.get_stats(request.user)
+    stats.update_streak()
+
+    return JsonResponse({
+        'status': 'success',
+        'level': progress.level,
+        'interval': progress.interval,
+        'next_review': progress.next_review_date.isoformat(),
+        'streak': stats.current_streak,
+    })
+
+
+def word_list_progress_api(request, list_id):
+    """Meaning-lookup progress for one list, polled while it is still processing."""
+    word_list = WordList.objects.filter(id=list_id).first()
+    if not word_list or not can_play(request, word_list):
+        return JsonResponse({'error': 'Word list not found'}, status=404)
+
+    return JsonResponse({
+        'id': word_list.id,
+        'name': word_list.name,
+        'status': word_list.processing_status,
+        'total_words': word_list.total_words,
+        'words_processed': word_list.words_processed,
+        'progress_percentage': word_list.progress_percentage,
+        'error_message': word_list.error_message,
+    })
+
+
+@login_required
+def user_stats_api(request):
+    stats = UserStats.get_stats(request.user)
+    return JsonResponse({
+        'current_streak': stats.current_streak,
+        'longest_streak': stats.longest_streak,
+        'total_reviews': stats.total_reviews,
+        'last_review_date': stats.last_review_date.isoformat() if stats.last_review_date else None,
+    })
