@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: vocabswipe
+    runtime: python
+    plan: starter
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
+    healthCheckPath: /explore/
+    # SQLite lives on a persistent disk, otherwise every deploy wipes the
+    # uploaded word lists and the game has nothing to show.
+    disk:
+      name: vocabswipe-data
+      mountPath: /var/lib/vocabswipe
+      sizeGB: 1
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: vocab.sujansapkota07.com.np,www.vocab.sujansapkota07.com.np
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://vocab.sujansapkota07.com.np,https://www.vocab.sujansapkota07.com.np
+      - key: DJANGO_DB_PATH
+        value: /var/lib/vocabswipe/db.sqlite3
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "0"
+      - key: PYTHON_VERSION
+        value: "3.12.13"

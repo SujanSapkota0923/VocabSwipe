@@ -34,9 +34,12 @@ lib64/
 # Database
 db.sqlite3
 *.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
 /data/
 /media/ # Optional: If you manage uploaded media with a deployment tool.
-staticfiles/ # Optional: If you use collectstatic in a deployment script.
+# Built by collectstatic during deploy
+staticfiles/
 
 # IDE-specific (adjust for your IDE)
 # VS Code
