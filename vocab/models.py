@@ -21,9 +21,15 @@ class WordList(models.Model):
         null=True,
     )
     name = models.CharField(max_length=255)
+    description = models.CharField(max_length=280, blank=True, default='')
     file_name = models.CharField(max_length=255)
     share_code = models.CharField(max_length=8, unique=True, db_index=True)
+    is_public = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def word_count(self):
+        return self.words.count()
 
     def save(self, *args, **kwargs):
         if not self.share_code:

@@ -4,89 +4,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#F61500">
+    <meta name="description" content="VocabSwipe — learn words with swipeable cards. Upload your own list or play a public one.">
     <title>{% block title %}VocabSwipe{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#FFF3F0', 100: '#FFE2DC', 200: '#FFC5B9', 300: '#FF9B85',
+                            400: '#FB6746', 500: '#F61500', 600: '#D01200', 700: '#A30E00',
+                            800: '#780A00', 900: '#4D0600',
+                        },
+                        ink: '#141414',
+                        mute: '#737373',
+                        line: '#E6E6E6',
+                        paper: '#FAFAF9',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --brand: #F61500;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+
         body {
-            font-family: 'Outfit', sans-serif;
-            background: #f8fafc;
-            color: #1e293b;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #FFFFFF;
+            color: #141414;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-        }
-
-        .gradient-bg {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-        }
-
-        .gradient-text {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+        ::selection {
+            background: #FFC5B9;
         }
 
         .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--brand);
+        }
+
+        a,
+        button {
+            -webkit-tap-highlight-color: transparent;
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="min-h-screen flex flex-col">
-    <nav class="py-4 px-4 md:px-8 flex justify-between items-center gap-3 glass sticky top-0 z-50">
-        <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}"
-            class="text-xl md:text-2xl font-bold gradient-text shrink-0">VocabSwipe</a>
+<body class="min-h-screen flex flex-col antialiased">
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-line">
+        <nav class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+            <a href="{% url 'home' %}" class="flex items-center gap-2 shrink-0">
+                <span class="w-2.5 h-2.5 rounded-sm bg-brand-500"></span>
+                <span class="font-semibold tracking-tight text-[15px]">VocabSwipe</span>
+            </a>
 
-        {% if user.is_authenticated %}
-        <div class="flex items-center gap-2 md:gap-4">
-            <span class="hidden sm:inline text-sm text-slate-500">Hi, <strong
-                    class="text-slate-700">{{ user.username }}</strong></span>
-            <a href="{% url 'dashboard' %}"
-                class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">My Lists</a>
-            <a href="{% url 'game' %}"
-                class="gradient-bg text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200/60 hover:scale-105 transition-all">Play</a>
-            <form action="{% url 'logout' %}" method="post" class="inline">
-                {% csrf_token %}
-                <button type="submit"
-                    class="text-sm text-slate-400 hover:text-red-500 transition-colors">Logout</button>
-            </form>
-        </div>
-        {% else %}
-        <div class="flex items-center gap-3">
-            <a href="{% url 'login' %}"
-                class="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">Log in</a>
-            <a href="{% url 'signup' %}"
-                class="gradient-bg text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg shadow-indigo-200/60 hover:scale-105 transition-all">Sign
-                up</a>
-        </div>
-        {% endif %}
-    </nav>
+            <div class="flex items-center gap-1 sm:gap-2 text-sm">
+                <a href="{% url 'explore' %}"
+                    class="px-2.5 py-1.5 rounded-md text-mute hover:text-ink hover:bg-paper transition-colors">Explore</a>
+
+                {% if user.is_authenticated %}
+                <a href="{% url 'dashboard' %}"
+                    class="px-2.5 py-1.5 rounded-md text-mute hover:text-ink hover:bg-paper transition-colors">My
+                    lists</a>
+                <a href="{% url 'game' %}"
+                    class="px-3 py-1.5 rounded-md bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors">Play</a>
+                <form action="{% url 'logout' %}" method="post" class="hidden sm:block">
+                    {% csrf_token %}
+                    <button type="submit"
+                        class="px-2.5 py-1.5 rounded-md text-mute hover:text-brand-600 transition-colors">Log
+                        out</button>
+                </form>
+                {% else %}
+                <a href="{% url 'login' %}"
+                    class="px-2.5 py-1.5 rounded-md text-mute hover:text-ink hover:bg-paper transition-colors">Log
+                    in</a>
+                <a href="{% url 'signup' %}"
+                    class="px-3 py-1.5 rounded-md bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors">Sign
+                    up</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
 
     {% if messages %}
-    <div class="max-w-3xl w-full mx-auto px-4 pt-4 space-y-2">
+    <div class="max-w-5xl w-full mx-auto px-4 pt-4 space-y-2">
         {% for message in messages %}
-        <div class="px-4 py-3 rounded-xl text-sm border {% if message.tags == 'error' %}bg-red-50 text-red-600 border-red-100{% else %}bg-green-50 text-green-700 border-green-100{% endif %}">
+        <div
+            class="px-4 py-3 rounded-lg text-sm border {% if message.tags == 'error' %}bg-brand-50 text-brand-700 border-brand-200{% else %}bg-paper text-ink border-line{% endif %}">
             {{ message }}
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <main class="flex-grow">
+    <main class="flex-grow w-full">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-6 text-center text-slate-400 text-sm border-t border-slate-100 safe-bottom">
-        &copy; 2026 VocabSwipe. Powered by Sujan Sapkota.
+    <footer class="border-t border-line mt-16">
+        <div class="max-w-5xl mx-auto px-4 py-6 safe-bottom flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between text-sm text-mute">
+            <span>&copy; 2026 VocabSwipe</span>
+            <span class="flex items-center gap-4">
+                <a href="{% url 'explore' %}" class="hover:text-ink transition-colors">Explore lists</a>
+                {% if user.is_authenticated %}
+                <form action="{% url 'logout' %}" method="post" class="sm:hidden">
+                    {% csrf_token %}
+                    <button type="submit" class="hover:text-brand-600 transition-colors">Log out</button>
+                </form>
+                {% endif %}
+            </span>
+        </div>
     </footer>
 
     {% block extra_js %}{% endblock %}

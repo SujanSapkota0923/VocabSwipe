@@ -11,11 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreUnknownEl = document.getElementById('score-unknown');
     const timerBar = document.getElementById('timer-bar');
     const timerText = document.getElementById('timer-text');
+    const btnKnown = document.getElementById('btn-known');
+    const btnUnknown = document.getElementById('btn-unknown');
 
     const mode = root.dataset.mode || 'classic';
     const listId = root.dataset.listId || '';
     const reviewMode = root.dataset.review === 'true';
+    const isAuthenticated = root.dataset.auth === 'true';
     const cardSeconds = parseInt(root.dataset.seconds, 10) || 10;
+    const guestStore = `vocabswipe:guest:${listId || 'all'}`;
 
     let cards = [];
     let currentIndex = 0;
@@ -27,31 +31,49 @@ document.addEventListener('DOMContentLoaded', () => {
     let startY = 0;
     let currentX = 0;
     let currentY = 0;
-    const swipeThreshold = 100;
+    const swipeThreshold = 90;
 
-    // Timer mode state
     let timerId = null;
     let deadline = 0;
 
-    function getCookie(name) {
+    // ---- Guest progress (browser only) ----
+
+    function loadGuestKnown() {
+        if (isAuthenticated) return new Set();
+        try {
+            return new Set(JSON.parse(localStorage.getItem(guestStore) || '[]'));
+        } catch (err) {
+            return new Set();
+        }
+    }
+
+    const guestKnown = loadGuestKnown();
+
+    function saveGuestKnown() {
+        if (isAuthenticated) return;
+        try {
+            localStorage.setItem(guestStore, JSON.stringify([...guestKnown]));
+        } catch (err) {
+            /* storage blocked or full — progress just isn't kept */
+        }
+    }
+
+    // ---- Networking ----
+
+    function readCookie(name) {
         const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
         return match ? decodeURIComponent(match[2]) : null;
     }
 
     async function api(url, options = {}) {
-        const response = await fetch(url, {
+        return fetch(url, {
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken') || '',
+                'X-CSRFToken': readCookie('csrftoken') || '',
                 ...(options.headers || {})
             },
             ...options
         });
-        if (response.status === 401 || response.redirected) {
-            window.location.href = '/login/';
-            return null;
-        }
-        return response;
     }
 
     async function fetchCards() {
@@ -62,11 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await api(url);
-            if (!response) return;
             cards = await response.json();
         } catch (error) {
             console.error('Failed to fetch cards:', error);
-            return;
+            cards = [];
+        }
+
+        if (!isAuthenticated) {
+            cards.forEach(card => { card.is_known = guestKnown.has(card.id); });
         }
 
         if (!cards.length) {
@@ -79,6 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimer();
     }
 
+    // ---- Progress ----
+
     function updateProgress() {
         const progress = cards.length ? (currentIndex / cards.length) * 100 : 0;
         progressBar.style.width = `${progress}%`;
@@ -88,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (cards.length && currentIndex >= cards.length) {
             stopTimer();
-            setTimeout(showCompletion, 400);
+            setTimeout(showCompletion, 350);
         }
     }
 
@@ -130,15 +157,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function timeUp() {
-        const topCard = cardStack.querySelector('.vocab-card:last-child');
+        const topCard = getTopCard();
         if (!topCard) return;
-        const inner = topCard.querySelector('.card-inner');
-        if (inner.classList.contains('is-flipped')) return;
+        if (topCard.querySelector('.card-inner').classList.contains('is-flipped')) return;
         handleAnswer(topCard, false);
         setTimeout(nextCard, 1600);
     }
 
     // ---- Cards ----
+
+    function getTopCard() {
+        return cardStack.querySelector('.vocab-card:last-child');
+    }
 
     function renderStack() {
         cardStack.innerHTML = '';
@@ -154,30 +184,69 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'vocab-card';
         card.dataset.id = data.id;
 
-        const meanings = data.meanings.length ? data.meanings : ['No meaning saved for this word.'];
-        const meaningsHtml = meanings.map((m, index) => `
-            <div class="py-3 border-b border-slate-100 last:border-0 w-full text-center">
-                ${meanings.length > 1 ? `<span class="text-xs font-bold text-indigo-400 block mb-1 uppercase tracking-tighter">Meaning ${index + 1}</span>` : ''}
-                <p class="text-lg text-slate-700 leading-relaxed">${m}</p>
-            </div>
-        `).join('');
+        const inner = document.createElement('div');
+        inner.className = 'card-inner';
 
-        card.innerHTML = `
-            <div class="card-inner">
-                <div class="card-face card-front">
-                    <div class="swipe-indicator know">Know</div>
-                    <div class="swipe-indicator dont-know">Don't Know</div>
-                    <h2 class="text-4xl md:text-5xl font-black text-slate-800 tracking-tight text-center break-words w-full px-2">${data.word}</h2>
-                    <p class="absolute bottom-8 text-slate-300 text-sm font-medium uppercase tracking-widest">Swipe to reveal</p>
-                </div>
-                <div class="card-face card-back">
-                    <div class="w-full space-y-2 pb-20">${meaningsHtml}</div>
-                    <div class="absolute bottom-6 w-full px-6">
-                        <button class="next-btn w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">Next card</button>
-                    </div>
-                </div>
-            </div>
+        // Front face
+        const front = document.createElement('div');
+        front.className = 'card-face card-front';
+        front.innerHTML = `
+            <div class="swipe-indicator know">Know</div>
+            <div class="swipe-indicator dont-know">Review</div>
         `;
+
+        const word = document.createElement('h2');
+        word.className = 'text-3xl md:text-4xl font-bold tracking-tight text-center break-words w-full px-2';
+        word.textContent = data.word;
+        front.appendChild(word);
+
+        const hint = document.createElement('p');
+        hint.className = 'absolute bottom-6 text-xs text-mute uppercase tracking-widest';
+        hint.textContent = 'Swipe to reveal';
+        front.appendChild(hint);
+
+        // Back face
+        const back = document.createElement('div');
+        back.className = 'card-face card-back';
+
+        const meanings = (data.meanings && data.meanings.length)
+            ? data.meanings
+            : ['No meaning saved for this word.'];
+
+        const backWord = document.createElement('p');
+        backWord.className = 'text-xs uppercase tracking-widest text-mute mb-3';
+        backWord.textContent = data.word;
+        back.appendChild(backWord);
+
+        const meaningWrap = document.createElement('div');
+        meaningWrap.className = 'w-full space-y-3';
+        meanings.forEach((meaning, index) => {
+            const row = document.createElement('div');
+            row.className = 'pb-3 border-b border-line last:border-0 w-full text-center';
+            if (meanings.length > 1) {
+                const label = document.createElement('span');
+                label.className = 'block text-[11px] font-medium text-brand-500 mb-1';
+                label.textContent = `Meaning ${index + 1}`;
+                row.appendChild(label);
+            }
+            const text = document.createElement('p');
+            text.className = 'text-base leading-relaxed';
+            text.textContent = meaning;
+            row.appendChild(text);
+            meaningWrap.appendChild(row);
+        });
+        back.appendChild(meaningWrap);
+
+        const nextWrap = document.createElement('div');
+        nextWrap.className = 'absolute bottom-5 left-0 w-full px-5';
+        nextWrap.innerHTML = `
+            <button class="next-btn w-full py-3 rounded-lg bg-ink text-white text-sm font-medium active:scale-[0.98] transition-all">Next card</button>
+        `;
+        back.appendChild(nextWrap);
+
+        inner.appendChild(front);
+        inner.appendChild(back);
+        card.appendChild(inner);
 
         if (isTop) initCardInteractions(card);
         return card;
@@ -216,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentX = (e.type === 'mousemove' ? e.clientX : e.touches[0].clientX) - startX;
             currentY = (e.type === 'mousemove' ? e.clientY : e.touches[0].clientY) - startY;
 
-            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX / 10}deg)`;
+            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX / 14}deg)`;
 
             if (currentX > 20) {
                 card.classList.add('swipe-right');
@@ -261,10 +330,16 @@ document.addEventListener('DOMContentLoaded', () => {
         scoreKnownEl.textContent = knownCount;
         scoreUnknownEl.textContent = unknownCount;
 
-        api(`/api/cards/${card.dataset.id}/status/`, {
-            method: 'POST',
-            body: JSON.stringify({ is_known: isKnown })
-        }).catch(err => console.error('Failed to update status', err));
+        const cardId = parseInt(card.dataset.id, 10);
+        if (isAuthenticated) {
+            api(`/api/cards/${cardId}/status/`, {
+                method: 'POST',
+                body: JSON.stringify({ is_known: isKnown })
+            }).catch(err => console.error('Failed to update status', err));
+        } else {
+            if (isKnown) guestKnown.add(cardId); else guestKnown.delete(cardId);
+            saveGuestKnown();
+        }
 
         inner.classList.add('is-flipped');
         card.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
@@ -279,9 +354,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentIndex < cards.length) startTimer();
     }
 
+    function answerTop(isKnown) {
+        const topCard = getTopCard();
+        if (!topCard) return;
+        const flipped = topCard.querySelector('.card-inner').classList.contains('is-flipped');
+        if (flipped) {
+            nextCard();
+        } else {
+            handleAnswer(topCard, isKnown);
+        }
+    }
+
+    if (btnKnown) btnKnown.addEventListener('click', () => answerTop(true));
+    if (btnUnknown) btnUnknown.addEventListener('click', () => answerTop(false));
+
     document.addEventListener('keydown', (e) => {
         if (currentIndex >= cards.length) return;
-        const topCard = cardStack.querySelector('.vocab-card:last-child');
+        const topCard = getTopCard();
         if (!topCard) return;
         const flipped = topCard.querySelector('.card-inner').classList.contains('is-flipped');
 

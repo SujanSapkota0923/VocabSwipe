@@ -5,7 +5,8 @@ from .models import JoinedList, Vocabulary, WordList, WordProgress
 
 @admin.register(WordList)
 class WordListAdmin(admin.ModelAdmin):
-    list_display = ('name', 'owner', 'share_code', 'created_at')
+    list_display = ('name', 'owner', 'share_code', 'is_public', 'created_at')
+    list_filter = ('is_public',)
     search_fields = ('name', 'share_code', 'owner__username')
 
 

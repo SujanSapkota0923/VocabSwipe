@@ -8,18 +8,106 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import JoinCodeForm, SignupForm, UploadFileForm
+from .forms import JoinCodeForm, ListSettingsForm, SignupForm, UploadFileForm
 from .models import JoinedList, Vocabulary, WordList, WordProgress
 from .utils.parsing import parse_vocabulary_file
 
 GAME_MODES = ('classic', 'timer')
+SESSION_UNLOCKED = 'unlocked_codes'
+
+
+# ---------------------------------------------------------------- access
 
 
 def accessible_lists(user):
-    """Lists the user owns plus lists they joined with a code."""
+    """Lists a signed-in user owns plus lists they joined with a code."""
     return WordList.objects.filter(
         Q(owner=user) | Q(joined_by__user=user)
     ).distinct()
+
+
+def unlocked_codes(request):
+    return request.session.get(SESSION_UNLOCKED, [])
+
+
+def unlock_code(request, code):
+    codes = unlocked_codes(request)
+    if code not in codes:
+        request.session[SESSION_UNLOCKED] = codes + [code]
+
+
+def can_play(request, word_list):
+    """Public lists are open to everyone. Private ones need ownership,
+    a join, or the share code entered in this browser session."""
+    if word_list is None:
+        return False
+    if word_list.is_public:
+        return True
+    if word_list.share_code in unlocked_codes(request):
+        return True
+    user = request.user
+    if user.is_authenticated:
+        if word_list.owner_id == user.id:
+            return True
+        if JoinedList.objects.filter(user=user, word_list=word_list).exists():
+            return True
+    return False
+
+
+def playable_lists(request, list_id=None):
+    """Queryset of Vocabulary sources for the current request."""
+    if list_id:
+        word_list = WordList.objects.filter(id=list_id).first()
+        if not can_play(request, word_list):
+            return WordList.objects.none()
+        return WordList.objects.filter(id=word_list.id)
+    if request.user.is_authenticated:
+        return accessible_lists(request.user)
+    codes = unlocked_codes(request)
+    return WordList.objects.filter(share_code__in=codes)
+
+
+def find_by_code(code):
+    return WordList.objects.filter(share_code=(code or '').strip().upper()).first()
+
+
+# ---------------------------------------------------------------- pages
+
+
+def home_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    join_form = JoinCodeForm()
+    if request.method == 'POST':
+        join_form = JoinCodeForm(request.POST)
+        if join_form.is_valid():
+            code = join_form.cleaned_data['code']
+            word_list = find_by_code(code)
+            if not word_list:
+                join_form.add_error('code', 'No list found with that code.')
+            else:
+                unlock_code(request, word_list.share_code)
+                return redirect(f"/game/?list_id={word_list.id}")
+
+    public_lists = (
+        WordList.objects.filter(is_public=True)
+        .annotate(total=Count('words'))
+        .select_related('owner')[:6]
+    )
+    return render(request, 'home.html', {
+        'join_form': join_form,
+        'public_lists': public_lists,
+        'public_count': WordList.objects.filter(is_public=True).count(),
+    })
+
+
+def explore_view(request):
+    query = request.GET.get('q', '').strip()
+    lists = WordList.objects.filter(is_public=True).annotate(total=Count('words')).select_related('owner')
+    if query:
+        lists = lists.filter(Q(name__icontains=query) | Q(description__icontains=query))
+    return render(request, 'explore.html', {'lists': lists, 'query': query})
 
 
 def signup_view(request):
@@ -30,6 +118,11 @@ def signup_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
+            # Carry any decks unlocked while signed out into the account.
+            for code in unlocked_codes(request):
+                word_list = find_by_code(code)
+                if word_list and word_list.owner_id != user.id:
+                    JoinedList.objects.get_or_create(user=user, word_list=word_list)
             return redirect('dashboard')
     else:
         form = SignupForm()
@@ -48,7 +141,7 @@ def dashboard_view(request):
             join_form = JoinCodeForm(request.POST)
             if join_form.is_valid():
                 code = join_form.cleaned_data['code']
-                word_list = WordList.objects.filter(share_code=code).first()
+                word_list = find_by_code(code)
                 if not word_list:
                     join_form.add_error('code', 'No list found with that code.')
                 elif word_list.owner_id == request.user.id:
@@ -71,7 +164,9 @@ def dashboard_view(request):
                     word_list = WordList.objects.create(
                         owner=request.user,
                         name=upload_form.cleaned_data.get('name') or uploaded.name,
+                        description=upload_form.cleaned_data.get('description', ''),
                         file_name=uploaded.name,
+                        is_public=upload_form.cleaned_data.get('is_public', False),
                     )
                     Vocabulary.objects.bulk_create([
                         Vocabulary(
@@ -105,12 +200,8 @@ def dashboard_view(request):
             })
         return out
 
-    my_lists = decorate(
-        WordList.objects.filter(owner=request.user).annotate(n=Count('words'))
-    )
-    joined = decorate(
-        WordList.objects.filter(joined_by__user=request.user).select_related('owner')
-    )
+    my_lists = decorate(WordList.objects.filter(owner=request.user))
+    joined = decorate(WordList.objects.filter(joined_by__user=request.user).select_related('owner'))
 
     total_words = Vocabulary.objects.filter(word_list__in=accessible_lists(request.user)).count()
 
@@ -122,6 +213,34 @@ def dashboard_view(request):
         'total_words': total_words,
         'known_total': len(known_ids),
     })
+
+
+@login_required
+def list_settings_view(request, list_id):
+    word_list = get_object_or_404(WordList, id=list_id, owner=request.user)
+    if request.method == 'POST':
+        form = ListSettingsForm(request.POST, instance=word_list)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'List updated.')
+            return redirect('dashboard')
+    else:
+        form = ListSettingsForm(instance=word_list)
+    return render(request, 'list_settings.html', {'form': form, 'word_list': word_list})
+
+
+@login_required
+def toggle_public_view(request, list_id):
+    if request.method == 'POST':
+        word_list = WordList.objects.filter(id=list_id, owner=request.user).first()
+        if word_list:
+            word_list.is_public = not word_list.is_public
+            word_list.save(update_fields=['is_public'])
+            messages.success(
+                request,
+                f'"{word_list.name}" is now {"public" if word_list.is_public else "private"}.',
+            )
+    return redirect('dashboard')
 
 
 @login_required
@@ -144,16 +263,29 @@ def leave_list_view(request, list_id):
     return redirect('dashboard')
 
 
-@login_required
 def game_view(request):
     mode = request.GET.get('mode', 'classic')
     if mode not in GAME_MODES:
         mode = 'classic'
 
+    code = request.GET.get('code')
+    if code:
+        word_list = find_by_code(code)
+        if word_list:
+            unlock_code(request, word_list.share_code)
+            return redirect(f'/game/?list_id={word_list.id}&mode={mode}')
+        messages.error(request, 'No list found with that code.')
+        return redirect('home')
+
     list_id = request.GET.get('list_id')
     word_list = None
     if list_id:
-        word_list = get_object_or_404(accessible_lists(request.user), id=list_id)
+        word_list = WordList.objects.filter(id=list_id).select_related('owner').first()
+        if not can_play(request, word_list):
+            messages.error(request, 'That list is private. Ask its owner for the share code.')
+            return redirect('home')
+    elif not request.user.is_authenticated:
+        return redirect('home')
 
     try:
         seconds = int(request.GET.get('seconds', 10))
@@ -169,6 +301,9 @@ def game_view(request):
     })
 
 
+# ---------------------------------------------------------------- api
+
+
 @login_required
 def list_word_lists_api(request):
     data = [
@@ -178,29 +313,28 @@ def list_word_lists_api(request):
             'share_code': word_list.share_code,
             'count': word_list.words.count(),
             'owned': word_list.owner_id == request.user.id,
+            'is_public': word_list.is_public,
         }
         for word_list in accessible_lists(request.user)
     ]
     return JsonResponse(data, safe=False)
 
 
-@login_required
 def card_list_api(request):
     list_id = request.GET.get('list_id')
     review_mode = request.GET.get('review_mode') == 'true'
 
-    lists = accessible_lists(request.user)
-    if list_id:
-        lists = lists.filter(id=list_id)
-
+    lists = playable_lists(request, list_id)
     cards = Vocabulary.objects.filter(word_list__in=lists)
 
-    known_ids = set(
-        WordProgress.objects.filter(user=request.user, is_known=True, vocabulary__in=cards)
-        .values_list('vocabulary_id', flat=True)
-    )
-    if review_mode:
-        cards = cards.exclude(id__in=known_ids)
+    known_ids = set()
+    if request.user.is_authenticated:
+        known_ids = set(
+            WordProgress.objects.filter(user=request.user, is_known=True, vocabulary__in=cards)
+            .values_list('vocabulary_id', flat=True)
+        )
+        if review_mode:
+            cards = cards.exclude(id__in=known_ids)
 
     cards = cards.order_by('?')
 
@@ -216,15 +350,16 @@ def card_list_api(request):
     return JsonResponse(data, safe=False)
 
 
-@login_required
 def update_card_status_api(request, card_id):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Only POST allowed'}, status=405)
 
-    card = Vocabulary.objects.filter(
-        id=card_id, word_list__in=accessible_lists(request.user)
-    ).first()
-    if not card:
+    if not request.user.is_authenticated:
+        # Guests play without an account; progress stays in their browser.
+        return JsonResponse({'status': 'guest'})
+
+    card = Vocabulary.objects.filter(id=card_id).select_related('word_list').first()
+    if not card or not can_play(request, card.word_list):
         return JsonResponse({'status': 'error', 'message': 'Card not found'}, status=404)
 
     try:

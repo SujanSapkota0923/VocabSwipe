@@ -1,170 +1,174 @@
 {% extends 'base.html' %}
-{% block title %}My Lists · VocabSwipe{% endblock %}
+{% block title %}My lists · VocabSwipe{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-8 md:py-12">
+<div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
 
-    <div class="text-center mb-8">
-        <h1 class="text-3xl md:text-4xl font-extrabold mb-3 tracking-tight">Your <span
-                class="gradient-text">Vocabulary</span></h1>
-        <p class="text-slate-500">{{ total_words }} words available · {{ known_total }} marked known</p>
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Hi, {{ user.username }}</h1>
+            <p class="text-mute mt-1 text-sm">{{ total_words }} word{{ total_words|pluralize }} available ·
+                {{ known_total }} marked known</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'game' %}?mode=classic"
+                class="px-4 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Play
+                all</a>
+            <a href="{% url 'game' %}?mode=timer"
+                class="px-4 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer
+                mode</a>
+        </div>
     </div>
 
-    <!-- Play everything -->
-    <div class="grid grid-cols-2 gap-3 mb-10">
-        <a href="{% url 'game' %}?mode=classic"
-            class="gradient-bg text-white py-4 rounded-2xl font-bold text-center shadow-lg shadow-indigo-100 active:scale-95 transition-all">
-            Play all · Classic
-        </a>
-        <a href="{% url 'game' %}?mode=timer"
-            class="bg-slate-900 text-white py-4 rounded-2xl font-bold text-center shadow-lg shadow-slate-200 active:scale-95 transition-all">
-            Play all · Timer
-        </a>
-    </div>
+    <div class="grid md:grid-cols-2 gap-3 mb-10">
+        <!-- Join with a code -->
+        <div class="rounded-xl border border-line p-5 md:p-6">
+            <h2 class="font-semibold mb-1">Play a friend's list</h2>
+            <p class="text-sm text-mute mb-4">Enter the 6-character code they shared.</p>
+            <form method="post" class="flex flex-col sm:flex-row gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="join">
+                <div class="flex-grow">
+                    {{ join_form.code }}
+                    {% for error in join_form.code.errors %}
+                    <p class="text-xs text-brand-600 mt-2">{{ error }}</p>
+                    {% endfor %}
+                </div>
+                <button type="submit"
+                    class="px-5 py-3 rounded-lg bg-ink text-white font-medium hover:bg-black active:scale-[0.98] transition-all">Join</button>
+            </form>
+        </div>
 
-    <!-- Join with a friend's code -->
-    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-6 md:p-8 border border-slate-100 mb-6">
-        <h2 class="font-bold text-slate-800 mb-1">Play a friend's words</h2>
-        <p class="text-sm text-slate-400 mb-4">Enter the 6-character code they shared with you.</p>
-        <form method="post" class="flex flex-col sm:flex-row gap-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="join">
-            <div class="flex-grow">
-                {{ join_form.code }}
-                {% for error in join_form.code.errors %}
-                <p class="text-xs text-red-500 mt-2">{{ error }}</p>
-                {% endfor %}
-            </div>
-            <button type="submit"
-                class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">Join</button>
-        </form>
-    </div>
+        <!-- Upload -->
+        <div class="rounded-xl border border-line p-5 md:p-6">
+            <h2 class="font-semibold mb-1">Upload a list</h2>
+            <p class="text-sm text-mute mb-4">
+                Format: <code class="text-ink bg-paper border border-line rounded px-1.5 py-0.5 text-xs">word, meaning 1;
+                    meaning 2; meaning 3</code>
+            </p>
+            <form method="post" enctype="multipart/form-data" id="upload-form" class="space-y-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload">
 
-    <!-- Upload -->
-    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-6 md:p-8 border border-slate-100">
-        <h2 class="font-bold text-slate-800 mb-4">Upload words</h2>
-        <form method="post" enctype="multipart/form-data" id="upload-form" class="space-y-5">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="upload">
+                {{ form.name }}
+                {{ form.description }}
 
-            {{ form.name }}
+                <div id="drop-zone"
+                    class="border border-dashed border-line rounded-lg p-6 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition-colors">
+                    <p class="text-sm font-medium">Tap or drop your file here</p>
+                    <p class="text-xs text-mute mt-1">.csv, .txt or .xlsx</p>
+                    <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.xlsx">
+                </div>
 
-            <div id="drop-zone"
-                class="border-2 border-dashed border-slate-200 rounded-2xl p-8 md:p-10 text-center transition-all hover:border-indigo-400 hover:bg-slate-50 group cursor-pointer">
-                <svg class="mx-auto h-10 w-10 mb-3 text-slate-400 group-hover:text-indigo-500 transition-colors"
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="text-slate-600 font-medium">Tap or drop your file here</p>
-                <p class="text-slate-400 text-sm mt-1">.csv, .txt or .xlsx sheet</p>
-                <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.xlsx">
-            </div>
+                <div id="file-selected"
+                    class="hidden items-center justify-between gap-3 bg-paper border border-line rounded-lg px-4 py-3">
+                    <span id="file-name" class="text-sm truncate"></span>
+                    <button type="button" id="remove-file"
+                        class="text-xs text-mute hover:text-brand-600 shrink-0">Remove</button>
+                </div>
 
-            <div id="file-selected"
-                class="hidden items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <span id="file-name" class="text-sm font-medium text-slate-700 truncate max-w-[80%]"></span>
-                <button type="button" id="remove-file" class="text-red-500 hover:text-red-700">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+                {% if form.file.errors %}
+                <p class="text-xs text-brand-600">{{ form.file.errors|striptags }}</p>
+                {% endif %}
 
-            {% if form.file.errors %}
-            <div class="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100">{{ form.file.errors }}</div>
-            {% endif %}
+                <label class="flex items-start gap-2 text-sm cursor-pointer">
+                    {{ form.is_public }}
+                    <span>
+                        <span class="font-medium">Make it public</span>
+                        <span class="block text-xs text-mute">Anyone can find and play it without an account.</span>
+                    </span>
+                </label>
 
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <code class="text-sm text-slate-600">word, meaning_1; meaning_2; meaning_3</code>
-                <p class="text-xs text-slate-400 mt-2 italic">Up to 3 meanings, separated by semicolons.</p>
-            </div>
-
-            <button type="submit" id="submit-btn"
-                class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-xl shadow-indigo-100 hover:-translate-y-0.5 active:scale-95 transition-all">
-                Upload list
-            </button>
-        </form>
+                <button type="submit" id="submit-btn"
+                    class="w-full py-3 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Upload
+                    list</button>
+            </form>
+        </div>
     </div>
 
     <!-- My lists -->
-    <h2 class="text-2xl font-bold text-slate-800 mt-12 mb-5">My lists</h2>
-    <div class="space-y-4">
+    <h2 class="font-semibold text-lg mb-4">My lists</h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {% for item in my_lists %}
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="p-5">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <h3 class="font-bold text-slate-700 text-lg truncate">{{ item.obj.name }}</h3>
-                        <p class="text-slate-400 text-sm">{{ item.total }} words · {{ item.known }} known</p>
-                    </div>
-                    <form action="{% url 'delete_list' item.obj.id %}" method="post"
-                        onsubmit="return confirm('Delete this list and all its words?');">
-                        {% csrf_token %}
-                        <button type="submit" class="text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-                    </form>
-                </div>
+        <div class="rounded-xl border border-line p-5 flex flex-col">
+            <div class="flex items-start justify-between gap-2">
+                <h3 class="font-semibold truncate">{{ item.obj.name }}</h3>
+                {% if item.obj.is_public %}
+                <span class="shrink-0 text-[11px] font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">Public</span>
+                {% else %}
+                <span class="shrink-0 text-[11px] font-medium text-mute bg-paper border border-line rounded px-2 py-0.5">Private</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-mute mt-1">{{ item.total }} word{{ item.total|pluralize }} · {{ item.known }} known ·
+                {{ item.unknown }} to review</p>
 
-                <div class="mt-4 flex items-center gap-2 text-sm">
-                    <span class="text-slate-400">Share code</span>
-                    <code class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg font-bold tracking-widest">{{ item.obj.share_code }}</code>
-                    <button type="button" class="copy-code text-slate-400 hover:text-indigo-600 font-medium"
-                        data-code="{{ item.obj.share_code }}">Copy</button>
-                </div>
+            <div class="flex items-center gap-2 mt-3 text-sm">
+                <span class="text-xs text-mute">Code</span>
+                <code class="bg-paper border border-line rounded px-2 py-0.5 font-semibold tracking-[0.2em] text-xs">{{ item.obj.share_code }}</code>
+                <button type="button" class="copy-code text-xs text-brand-600 hover:text-brand-700"
+                    data-code="{{ item.obj.share_code }}">Copy</button>
+            </div>
 
-                <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic"
-                        class="text-center bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Classic</a>
-                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer"
-                        class="text-center bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Timer</a>
-                    {% if item.unknown %}
-                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                        class="text-center col-span-2 sm:col-span-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Review
-                        {{ item.unknown }}</a>
-                    {% endif %}
-                </div>
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic"
+                    class="text-center py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Classic</a>
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer"
+                    class="text-center py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer</a>
+                {% if item.unknown %}
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
+                    class="col-span-2 text-center py-2.5 rounded-lg bg-paper border border-line text-sm font-medium hover:border-ink transition-colors">Review
+                    {{ item.unknown }}</a>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-line text-xs">
+                <form action="{% url 'toggle_public' item.obj.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="text-mute hover:text-ink transition-colors">
+                        {% if item.obj.is_public %}Make private{% else %}Make public{% endif %}
+                    </button>
+                </form>
+                <a href="{% url 'list_settings' item.obj.id %}" class="text-mute hover:text-ink transition-colors">Edit</a>
+                <form action="{% url 'delete_list' item.obj.id %}" method="post" class="ml-auto"
+                    onsubmit="return confirm('Delete this list and all its words? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-mute hover:text-brand-600 transition-colors">Delete</button>
+                </form>
             </div>
         </div>
         {% empty %}
-        <div class="text-center text-slate-400 py-10 border border-dashed border-slate-200 rounded-2xl">
-            <p>No lists yet. Upload a file above.</p>
+        <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-line p-10 text-center text-mute text-sm">
+            No lists yet. Upload a file above to create your first one.
         </div>
         {% endfor %}
     </div>
 
     <!-- Joined lists -->
     {% if joined_lists %}
-    <h2 class="text-2xl font-bold text-slate-800 mt-12 mb-5">Friends' lists</h2>
-    <div class="space-y-4 pb-8">
+    <h2 class="font-semibold text-lg mt-10 mb-4">Friends' lists</h2>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {% for item in joined_lists %}
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <h3 class="font-bold text-slate-700 text-lg truncate">{{ item.obj.name }}</h3>
-                    <p class="text-slate-400 text-sm">by {{ item.obj.owner.username }} · {{ item.total }} words ·
-                        {{ item.known }} known</p>
-                </div>
-                <form action="{% url 'leave_list' item.obj.id %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="text-xs text-slate-400 hover:text-red-500 font-medium">Remove</button>
-                </form>
-            </div>
-            <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div class="rounded-xl border border-line p-5 flex flex-col">
+            <h3 class="font-semibold truncate">{{ item.obj.name }}</h3>
+            <p class="text-xs text-mute mt-1">by {{ item.obj.owner.username }} · {{ item.total }} words ·
+                {{ item.known }} known</p>
+            <div class="grid grid-cols-2 gap-2 mt-4">
                 <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic"
-                    class="text-center bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Classic</a>
+                    class="text-center py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Classic</a>
                 <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer"
-                    class="text-center bg-slate-900 text-white py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Timer</a>
+                    class="text-center py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer</a>
                 {% if item.unknown %}
                 <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                    class="text-center col-span-2 sm:col-span-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-semibold text-sm active:scale-95 transition-all">Review
+                    class="col-span-2 text-center py-2.5 rounded-lg bg-paper border border-line text-sm font-medium hover:border-ink transition-colors">Review
                     {{ item.unknown }}</a>
                 {% endif %}
             </div>
+            <form action="{% url 'leave_list' item.obj.id %}" method="post"
+                class="mt-4 pt-3 border-t border-line text-xs">
+                {% csrf_token %}
+                <button type="submit" class="text-mute hover:text-brand-600 transition-colors">Remove from my
+                    lists</button>
+            </form>
         </div>
         {% endfor %}
     </div>
@@ -185,16 +189,16 @@
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.classList.add('border-indigo-400', 'bg-slate-50');
+        dropZone.classList.add('border-brand-400', 'bg-brand-50');
     });
 
     dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('border-indigo-400', 'bg-slate-50');
+        dropZone.classList.remove('border-brand-400', 'bg-brand-50');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.classList.remove('border-indigo-400', 'bg-slate-50');
+        dropZone.classList.remove('border-brand-400', 'bg-brand-50');
         if (e.dataTransfer.files.length) {
             fileInput.files = e.dataTransfer.files;
             handleFileSelect();
@@ -220,7 +224,7 @@
 
     document.getElementById('upload-form').addEventListener('submit', () => {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing...';
+        submitBtn.textContent = 'Processing…';
     });
 
     document.querySelectorAll('.copy-code').forEach(btn => {

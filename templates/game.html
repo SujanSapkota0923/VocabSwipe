@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Play · VocabSwipe{% endblock %}
+{% block title %}{% if word_list %}{{ word_list.name }}{% else %}Play{% endif %} · VocabSwipe{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -11,8 +11,8 @@
     .card-container {
         perspective: 1000px;
         width: 100%;
-        max-width: 400px;
-        height: min(600px, 62vh);
+        max-width: 26rem;
+        height: min(30rem, 58vh);
         position: relative;
         margin: 0 auto;
         touch-action: none;
@@ -38,7 +38,7 @@
         height: 100%;
         position: relative;
         transform-style: preserve-3d;
-        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .card-inner.is-flipped {
@@ -47,166 +47,186 @@
 
     .card-face {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        inset: 0;
         backface-visibility: hidden;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         padding: 1.5rem;
-        border-radius: 2rem;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-    }
-
-    .card-front {
-        background: white;
+        border-radius: 1rem;
+        border: 1px solid #E6E6E6;
+        background: #FFFFFF;
+        box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04), 0 8px 24px -12px rgba(20, 20, 20, 0.15);
     }
 
     .card-back {
-        background: #fdf2f8;
         transform: rotateY(180deg);
         overflow-y: auto;
+        justify-content: flex-start;
+        padding-top: 2rem;
+        padding-bottom: 5rem;
+        background: #FAFAF9;
     }
 
     .swipe-indicator {
         position: absolute;
-        top: 2rem;
-        padding: 0.5rem 1rem;
-        border: 4px solid;
+        top: 1.5rem;
+        padding: 0.35rem 0.75rem;
+        border: 2px solid;
         border-radius: 0.5rem;
-        font-weight: 800;
-        font-size: 1.5rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         opacity: 0;
         transition: opacity 0.1s;
         z-index: 10;
-        text-transform: uppercase;
     }
 
     .swipe-right .swipe-indicator.know {
         opacity: 1;
-        color: #22c55e;
-        border-color: #22c55e;
-        left: 1.5rem;
-        transform: rotate(-20deg);
+        color: #F61500;
+        border-color: #F61500;
+        left: 1.25rem;
+        transform: rotate(-12deg);
     }
 
     .swipe-left .swipe-indicator.dont-know {
         opacity: 1;
-        color: #ef4444;
-        border-color: #ef4444;
-        right: 1.5rem;
-        transform: rotate(20deg);
+        color: #737373;
+        border-color: #737373;
+        right: 1.25rem;
+        transform: rotate(12deg);
     }
 
     .vocab-card:nth-last-child(2) {
-        transform: translateZ(-30px) translateY(10px) scale(0.95);
-        opacity: 0.8;
+        transform: translateZ(-30px) translateY(8px) scale(0.97);
+        opacity: 0.7;
     }
 
     .vocab-card:nth-last-child(3) {
-        transform: translateZ(-60px) translateY(20px) scale(0.9);
-        opacity: 0.6;
+        transform: translateZ(-60px) translateY(16px) scale(0.94);
+        opacity: 0.45;
     }
 
     .vocab-card:nth-last-child(n+4) {
         opacity: 0;
     }
 
-    #timer-bar {
-        transition: width 0.1s linear;
+    #timer-bar,
+    #progress-bar {
+        transition: width 0.12s linear;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 py-6 md:py-10" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
-    data-list-id="{{ word_list.id|default:'' }}" data-review="{{ review_mode|yesno:'true,false' }}">
+<div class="max-w-xl mx-auto px-4 py-6 md:py-10" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
+    data-list-id="{{ word_list.id|default:'' }}" data-review="{{ review_mode|yesno:'true,false' }}"
+    data-auth="{{ user.is_authenticated|yesno:'true,false' }}">
 
-    <div class="flex justify-between items-center gap-3 mb-5">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-3 mb-4">
         <div class="min-w-0">
-            <a href="{% url 'dashboard' %}"
-                class="inline-flex items-center text-slate-500 hover:text-indigo-600 font-bold text-sm mb-1">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
+            <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
+                class="text-sm text-mute hover:text-ink transition-colors">&larr; Back</a>
+            <h1 class="font-semibold truncate mt-1">
                 {% if word_list %}{{ word_list.name }}{% else %}All my words{% endif %}
-            </a>
-            <div class="flex items-center gap-2">
-                <div class="w-28 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div id="progress-bar" class="h-full gradient-bg w-0 transition-all duration-300"></div>
-                </div>
-                <span id="progress-text" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">0 / 0</span>
-            </div>
+            </h1>
         </div>
 
-        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-full text-xs font-bold shrink-0">
+        <div class="flex items-center gap-1 p-1 rounded-lg bg-paper border border-line text-xs font-medium shrink-0">
             <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=classic"
-                class="px-3 py-2 rounded-full transition-all {% if mode == 'classic' %}bg-white text-indigo-600 shadow{% else %}text-slate-500{% endif %}">Classic</a>
+                class="px-3 py-1.5 rounded-md transition-colors {% if mode == 'classic' %}bg-white border border-line text-ink{% else %}text-mute hover:text-ink{% endif %}">Classic</a>
             <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=timer"
-                class="px-3 py-2 rounded-full transition-all {% if mode == 'timer' %}bg-white text-indigo-600 shadow{% else %}text-slate-500{% endif %}">Timer</a>
+                class="px-3 py-1.5 rounded-md transition-colors {% if mode == 'timer' %}bg-white border border-line text-ink{% else %}text-mute hover:text-ink{% endif %}">Timer</a>
         </div>
     </div>
 
-    {% if mode == 'timer' %}
-    <div class="max-w-md mx-auto mb-4">
-        <div class="flex justify-between items-center mb-2 text-sm font-semibold">
-            <span class="text-slate-400">Time left</span>
-            <span id="timer-text" class="text-slate-700 tabular-nums">{{ seconds }}s</span>
+    <!-- Progress -->
+    <div class="flex items-center gap-3 mb-4">
+        <div class="flex-grow h-1 bg-line rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-brand-500 w-0"></div>
         </div>
-        <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div id="timer-bar" class="h-full bg-slate-900 w-full"></div>
+        <span id="progress-text" class="text-xs text-mute tabular-nums shrink-0">0 / 0</span>
+    </div>
+
+    {% if mode == 'timer' %}
+    <div class="mb-4">
+        <div class="flex justify-between items-center mb-1.5 text-xs text-mute">
+            <span>Time left</span>
+            <span id="timer-text" class="tabular-nums">{{ seconds }}s</span>
+        </div>
+        <div class="w-full h-1 bg-line rounded-full overflow-hidden">
+            <div id="timer-bar" class="h-full bg-ink w-full"></div>
         </div>
     </div>
     {% endif %}
 
-    <div class="max-w-md mx-auto flex justify-center gap-6 mb-5 text-sm font-semibold">
-        <span class="text-green-600">Known <span id="score-known" class="tabular-nums">0</span></span>
-        <span class="text-red-500">Unknown <span id="score-unknown" class="tabular-nums">0</span></span>
+    {% if not user.is_authenticated %}
+    <p class="mb-4 text-xs text-mute bg-paper border border-line rounded-lg px-3 py-2">
+        Playing as a guest — progress stays in this browser.
+        <a href="{% url 'signup' %}" class="text-brand-600 font-medium">Sign up</a> to save it.
+    </p>
+    {% endif %}
+
+    <!-- Score -->
+    <div class="flex justify-center gap-6 mb-4 text-sm">
+        <span class="text-brand-600 font-medium">Known <span id="score-known" class="tabular-nums">0</span></span>
+        <span class="text-mute">To review <span id="score-unknown" class="tabular-nums">0</span></span>
     </div>
 
-    <div id="game-container" class="max-w-md mx-auto relative">
+    <div id="game-container" class="relative">
         <div id="card-stack" class="card-container"></div>
 
-        <div id="empty-screen" class="hidden text-center py-16 bg-white rounded-3xl shadow-xl border border-slate-100">
-            <h2 class="text-2xl font-extrabold mb-2">No words here</h2>
-            <p class="text-slate-500 mb-6 px-8">Upload a list or join a friend's code to start playing.</p>
-            <a href="{% url 'dashboard' %}"
-                class="inline-block gradient-bg text-white px-8 py-3 rounded-2xl font-bold">Go to my lists</a>
-        </div>
-
-        <div id="completion-screen"
-            class="hidden text-center py-14 bg-white rounded-3xl shadow-xl border border-slate-100">
-            <div class="mb-5 inline-flex p-4 bg-green-50 rounded-full text-green-500">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <h2 class="text-3xl font-extrabold mb-2">Deck finished</h2>
-            <p id="completion-message" class="text-slate-500 mb-8 px-8"></p>
-            <div class="space-y-3 px-8">
-                <button id="replay-btn"
-                    class="w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 active:scale-95 transition-all">Play
-                    again</button>
+        <div id="empty-screen" class="hidden text-center rounded-xl border border-line py-14 px-6">
+            <h2 class="text-xl font-semibold mb-2">No words here</h2>
+            <p class="text-mute text-sm mb-6">Upload a list, join one with a code, or play a public list.</p>
+            <div class="flex flex-wrap justify-center gap-2">
+                <a href="{% url 'explore' %}"
+                    class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors">Explore
+                    lists</a>
+                {% if user.is_authenticated %}
                 <a href="{% url 'dashboard' %}"
-                    class="block w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all">Back
-                    to my lists</a>
+                    class="px-5 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">My
+                    lists</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="completion-screen" class="hidden text-center rounded-xl border border-line py-12 px-6">
+            <div class="w-10 h-10 mx-auto mb-4 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center">
+                <span class="w-2.5 h-2.5 rounded-sm bg-brand-500"></span>
+            </div>
+            <h2 class="text-xl font-semibold mb-2">Deck finished</h2>
+            <p id="completion-message" class="text-mute text-sm mb-6"></p>
+            <div class="flex flex-col sm:flex-row justify-center gap-2">
+                <button id="replay-btn"
+                    class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Play
+                    again</button>
+                <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
+                    class="px-5 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">
+                    {% if user.is_authenticated %}My lists{% else %}Explore more{% endif %}</a>
             </div>
         </div>
     </div>
 
-    <div class="mt-8 flex justify-center gap-6 text-slate-400 font-medium text-sm">
-        <div class="flex items-center gap-2">
-            <span class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs">←</span>
-            <span>Don't know</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-6 h-6 border-2 border-slate-200 rounded flex items-center justify-center text-xs">→</span>
-            <span>Know it</span>
-        </div>
+    <!-- Controls -->
+    <div class="mt-6 grid grid-cols-2 gap-2 max-w-sm mx-auto sm:hidden">
+        <button id="btn-unknown"
+            class="py-3 rounded-lg border border-line text-sm font-medium active:scale-[0.98] transition-all">Don't
+            know</button>
+        <button id="btn-known"
+            class="py-3 rounded-lg bg-brand-500 text-white text-sm font-medium active:scale-[0.98] transition-all">Know
+            it</button>
     </div>
+
+    <p class="hidden sm:flex justify-center gap-6 mt-6 text-xs text-mute">
+        <span>&larr; Don't know</span>
+        <span>Know it &rarr;</span>
+        <span>Space — next card</span>
+    </p>
 </div>
 {% endblock %}
 

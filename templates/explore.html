@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Explore lists · VocabSwipe{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+    <h1 class="text-2xl md:text-3xl font-bold tracking-tight mb-2">Public lists</h1>
+    <p class="text-mute mb-6">Anyone can play these — no account needed.</p>
+
+    <form method="get" class="flex gap-2 mb-8 max-w-md">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search lists"
+            class="flex-grow px-4 py-3 rounded-lg border border-line bg-white placeholder:text-mute focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition-colors">
+        <button type="submit"
+            class="px-5 py-3 rounded-lg bg-ink text-white font-medium hover:bg-black transition-colors">Search</button>
+    </form>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for item in lists %}
+        <div class="rounded-xl border border-line p-5 flex flex-col">
+            <h3 class="font-semibold truncate">{{ item.name }}</h3>
+            <p class="text-sm text-mute mt-1 line-clamp-2 flex-grow">{{ item.description|default:"No description." }}</p>
+            <p class="text-xs text-mute mt-3">{{ item.total }} word{{ item.total|pluralize }}{% if item.owner %} ·
+                by {{ item.owner.username }}{% endif %}</p>
+            <div class="grid grid-cols-2 gap-2 mt-4">
+                <a href="{% url 'game' %}?list_id={{ item.id }}&mode=classic"
+                    class="text-center py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Classic</a>
+                <a href="{% url 'game' %}?list_id={{ item.id }}&mode=timer"
+                    class="text-center py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-line p-12 text-center text-mute text-sm">
+            {% if query %}No list matches "{{ query }}".{% else %}No public lists yet.{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
