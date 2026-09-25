@@ -4,6 +4,11 @@ set -o errexit
 
 python manage.py migrate --noinput
 
+# Also run by build.sh. Repeated here because a host whose build command is
+# not build.sh ships without the static manifest, and then every page that
+# uses {% static %} is a 500. Takes a few seconds and is a no-op when current.
+python manage.py collectstatic --noinput
+
 # A lookup interrupted by the previous shutdown goes back in the queue.
 python manage.py resume_lookups
 

@@ -52,6 +52,12 @@ ALLOWED_HOSTS = env_list(
     'vocab.sujansapkota07.com.np,www.vocab.sujansapkota07.com.np,localhost,127.0.0.1',
 )
 
+# Render sets this to the service's own *.onrender.com name. Without it that
+# URL answers 400 Bad Request.
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME and '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 CSRF_TRUSTED_ORIGINS = env_list(
     'DJANGO_CSRF_TRUSTED_ORIGINS',
     'https://vocab.sujansapkota07.com.np,https://www.vocab.sujansapkota07.com.np',

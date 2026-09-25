@@ -10,6 +10,7 @@ build.sh   pip install -r requirements.txt
            python manage.py collectstatic --noinput     (WhiteNoise serves STATIC_ROOT=staticfiles/)
 
 start.sh   python manage.py migrate --noinput           (runtime: the data disk is only mounted now)
+           python manage.py collectstatic --noinput     (again: covers hosts whose build command is not build.sh)
            python manage.py resume_lookups              (processing → pending after a restart)
            exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-3} --timeout 120
 ```
@@ -31,6 +32,15 @@ skipped.
 | `DJANGO_DB_PATH` | `/var/lib/vocabswipe/db.sqlite3` |
 | `DJANGO_SECURE_SSL_REDIRECT` | `0` (Render / Cloudflare already force HTTPS) |
 | Hosts / CSRF origins | production domain with and without `www` |
+
+`render.yaml` only applies to a service created as a Blueprint. For a service
+created by hand, the Build and Start commands in the Render dashboard must be
+`./build.sh` and `./start.sh`. When the static manifest is missing, every page
+returns 500 with `ValueError: Missing staticfiles manifest entry for
+'css/app.css'` in the logs (seen in production on 2026-09-25).
+
+Render's own `*.onrender.com` name is added to `ALLOWED_HOSTS` automatically
+from `RENDER_EXTERNAL_HOSTNAME`; before that it answered 400.
 
 All variables are listed in `Plan.md` → Environment Variables and `.env.example`.
 
