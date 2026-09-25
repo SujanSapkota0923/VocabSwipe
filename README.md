@@ -100,6 +100,9 @@ vocab/           the app: models, views, forms, tasks, tests
 templates/       pages, all extending base.html
 static/css/      one hand written stylesheet, no framework
 static/js/       game.js (the card stack) and dashboard.js (upload, polling)
+docs/            architecture, API, security, deployment, roadmap
+wordlists/       ready-to-upload word files
+scripts/         offline helpers: PDF to word list, file splitter
 ```
 
 ## Documentation
@@ -109,11 +112,5 @@ static/js/       game.js (the card stack) and dashboard.js (upload, polling)
 - `docs/API.md` — JSON and form endpoints
 - `docs/SECURITY.md` — security audit and open findings
 - `docs/DEPLOYMENT.md` — build, start, Render, data and logs
-
-`AUTO_SPLIT_FEATURE.md` and `RATE_LIMIT_FIX.md` describe earlier behaviour
-(50-word splitting, a 1.5 s lookup delay) that the current code does not have.
-
-The scripts in the repository root (`convert_pdf_to_vocab.py`,
-`extract_pdf_vocab.py`, `clean_vocab.py`, `split_vocab_file.py`) are one-off
-helpers for preparing word files. They need `pandas` and `PyPDF2`, which the
-web app itself does not use and `requirements.txt` no longer installs.
+- `docs/ROADMAP.md` — the long-term development brief the plan is based on
+- `wordlists/README.md`, `scripts/README.md` — sample word files and offline helpers

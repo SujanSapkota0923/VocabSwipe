@@ -1,8 +1,8 @@
 # VocabSwipe Plan
 
 Persistent project state: what VocabSwipe is, what has been verified, what is
-next. Read this before starting work. `claude.md` holds the full roadmap brief
-this plan is derived from; the detailed references live in `docs/`.
+next. Read this before starting work. `docs/ROADMAP.md` holds the full roadmap
+brief this plan is derived from; the detailed references live in `docs/`.
 
 Last updated: 2026-09-25 (UI-001).
 
@@ -52,10 +52,9 @@ static/css/app.css      single stylesheet
 static/js/              game.js (card stack), dashboard.js (upload, polling)
 build.sh / start.sh     build step / runtime entrypoint (migrate, resume, gunicorn)
 render.yaml, Procfile   deployment
-docs/                   ARCHITECTURE, SECURITY, API, DEPLOYMENT
-*.py in root            offline one-off helpers (PDF extraction, cleaning, splitting)
-*.txt, *.csv, split_files/  sample / source vocabulary data (tracked in git)
-AUTO_SPLIT_FEATURE.md, RATE_LIMIT_FIX.md, PDF_CONVERSION_GUIDE.md  stale notes, see Known Issues
+docs/                   ARCHITECTURE, SECURITY, API, DEPLOYMENT, ROADMAP (the long-term brief)
+wordlists/              ready-to-upload word files (see wordlists/README.md)
+scripts/                offline helpers: PDF → word list, file splitter (need PyPDF2)
 ```
 
 ## Current Features (verified 2026-09-25)
@@ -165,9 +164,9 @@ Confirmed during the audit:
 8. `MAX_WORDS` truncates at 20,000 silently; the user is not told words were dropped.
 9. "Review N" on the dashboard counts unknown words, but review mode also serves due known words, so the numbers differ.
 10. ~~Card front hint says "Swipe to reveal"~~ — fixed in UI-001 (hint now reads "← Don't know / Know it →").
-11. `AUTO_SPLIT_FEATURE.md` and `RATE_LIMIT_FIX.md` describe behaviour the code no longer has (50-word split, 1.5 s delay). `PDF_CONVERSION_GUIDE.md` and the root scripts hard-code `/Users/sujan/...` paths.
-12. `test_api.py` in the repo root matches the test discovery pattern and makes live network calls at import.
-13. `claude.md` (lowercase) asks for a `CLAUDE.md`; both names in one repo collide on macOS/Windows checkouts (see Important Decisions).
+11. ~~Stale root notes and scripts with hard-coded paths~~ — removed in FIX-004. (Was: `AUTO_SPLIT_FEATURE.md` and `RATE_LIMIT_FIX.md` describe behaviour the code no longer has (50-word split, 1.5 s delay). `PDF_CONVERSION_GUIDE.md` and the root scripts hard-code `/Users/sujan/...` paths.
+12. ~~`test_api.py` in test discovery~~ — removed in FIX-004.
+13. ~~`claude.md` / `CLAUDE.md` name clash~~ — the brief moved to `docs/ROADMAP.md` (FIX-005).
 14. `config/settings.py` now falls back to `SECRET_KEY = 'this-is-for-testing-purpose'` when `DJANGO_SECRET_KEY` is unset (commit `95f904e`). That disables the startup guard: a deploy missing the variable runs with a public key instead of failing. Render sets the variable, so production is probably unaffected, but the guard is gone.
 15. Commit `bb89564` renamed `.env.example` to `.env`, so a `.env` file is now tracked in git. Its contents were not inspected (reading credential files is blocked in this environment). If it holds a real key, that key must be rotated.
 
@@ -179,7 +178,6 @@ Confirmed during the audit:
 - `Vocabulary.word_list` and `WordList.owner` are nullable although the app always sets them (owner is null only for the starter deck).
 - `DictionaryAPI` prints to stdout instead of logging, does not URL-quote the word, and `fetch_meanings_batch` is unused.
 - Inline styles throughout templates.
-- Sample data files, `split_files/`, an empty `words` file and one-off scripts tracked in the repo root.
 - Large uncommitted working tree (17 modified files, new CSS/JS/migration/commands) — the verified state above is the working tree, not `HEAD`.
 
 ## Project Tasks
@@ -195,8 +193,13 @@ describe what already exists so it is reused, not rebuilt.
   - Completed: 2026-09-25
   - Result: `id` path converter in `vocab/urls.py` (1–18 digits, no leading zero) replaces `<int:>` on every route, so oversized path ids 404. `parse_id()` in `vocab/views.py` validates `?list_id=`: `/api/cards/` returns 400 JSON, `/game/` treats it as a missing list. 5 tests in `InvalidIdTests`; suite 48/48.
 - [ ] FIX-003 — Upgrade Django 4.2 → 5.2 LTS; rebuild the venv from `requirements.txt`; run tests and `check --deploy`
-- [ ] FIX-004 — Retire or correct stale root docs; move `test_api.py` out of test discovery
-- [ ] FIX-005 — Decide on `claude.md` vs `CLAUDE.md` (see Important Decisions)
+- [x] FIX-004 — Retire stale root files and organize the rest
+  - Completed: 2026-09-25
+  - Removed: `AUTO_SPLIT_FEATURE.md`, `RATE_LIMIT_FIX.md` (described removed behaviour), `PDF_CONVERSION_GUIDE.md` (folded into `scripts/README.md`), `test_api.py` (live-network script in test discovery), `clean_vocab.py` and `extract_pdf_vocab.py` (one-offs with hard-coded `/Users/sujan` paths; their output is kept in `wordlists/`), `word.txt` (old feature notes, implemented), `words` (empty), `test_background_processing.txt` (unrelated text), `APEUni_PTE_Advanced_Vocab.txt` (raw, superseded), `APEUni_PTE_Advanced_Vocab_cleaned.txt` (duplicate of the CSV), `split_files/` (the same 812 words as `final_vocabulary.csv`, cut in 9 parts). All recoverable from git history.
+  - Moved: word files to `wordlists/` (not `data/`, which `.gitignore` reserves) (`pte_words_with_meanings.csv`, `pte_advanced_words.csv`, `sample_words_only.txt`), `convert_pdf_to_vocab.py` and `split_vocab_file.py` to `scripts/`.
+  - Verified: 48/48 tests; no code referenced the moved files.
+- [x] FIX-005 — `claude.md` vs `CLAUDE.md`
+  - Completed: 2026-09-25 — the brief moved to `docs/ROADMAP.md`; the root no longer has a lowercase `claude.md`, so a `CLAUDE.md` can be added later without a case clash.
 - [ ] FIX-006 — Restore the fail-fast `SECRET_KEY` guard (Known Issue 14); needs the owner's agreement since the fallback was added on purpose
 - [ ] FIX-007 — Owner checks the tracked `.env` (Known Issue 15): if it has real values, rotate them, `git rm --cached .env`, restore `.env.example`, add `.env` to `.gitignore`
 
@@ -284,6 +287,7 @@ describe what already exists so it is reused, not rebuilt.
 - 2026-09-25 — FIX-001 (baseline committed), FIX-002 (id validation).
 - 2026-09-25 — Production 500 fix (collectstatic at start, Render hostname in `ALLOWED_HOSTS`).
 - 2026-09-25 — UI-001 mobile-first UI/UX refinement.
+- 2026-09-25 — FIX-004, FIX-005 (repository cleanup).
 
 ## In Progress
 
@@ -304,7 +308,7 @@ After Phase 0, TASK-021/TASK-024 (rate limiting) come before Phase 2 features.
 
 ## Important Decisions
 
-- 2026-09-25 — Project state lives in `Plan.md`, not a new `CLAUDE.md`. The repo already has a lowercase `claude.md` (the roadmap brief); adding `CLAUDE.md` beside it breaks checkouts on case-insensitive filesystems (the original developer works on macOS). Revisit in FIX-005: e.g. move the brief to `docs/ROADMAP.md` and then create `CLAUDE.md`.
+- 2026-09-25 — Project state lives in `Plan.md`. The roadmap brief (formerly root `claude.md`) is `docs/ROADMAP.md`; wherever it says `CLAUDE.md`, read `Plan.md`.
 - SQLite stays for now. The roadmap mentions PostgreSQL; switching is a TASK-030 decision, not something to do in passing.
 - Background work stays an in-process thread unless evidence shows it fails (roadmap Rule 6: no unnecessary queues).
 - The app does not use AI. Do not describe the review algorithm as AI.

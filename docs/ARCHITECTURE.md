@@ -30,21 +30,20 @@ methods (`WordProgress.apply_review`, `UserStats.update_streak`) and in
 
 ```
 Vocabulary source      Upload form on /dashboard/ (dashboard_view, action=upload)
-                       Offline: extract_pdf_vocab.py, convert_pdf_to_vocab.py (PyPDF2, not installed by requirements.txt)
+                       Offline: scripts/convert_pdf_to_vocab.py (PyPDF2, not installed by requirements.txt)
   ▼
 Validation (file)      UploadFileForm.clean_file: extension allow-list (.txt .csv .tsv .xlsx .xlsm), 5 MB cap
   ▼
 Extraction             parsing._parse_text (csv.reader, utf-8-sig/utf-8/latin-1) or parsing._parse_sheet (openpyxl read_only, active sheet)
   ▼
 Cleaning               parsing._clean (whitespace collapse), _split_meanings (';' or '|'), header-row skip, 'nan'/'none' rows dropped
-                       Offline: clean_vocab.py
   ▼
 Validation (rows)      _row_to_entry: word ≤ 255 chars, ≤ 3 meanings; MAX_WORDS = 20,000 (silent truncation)
   ▼
 Deduplication          parse_vocabulary_file: case-insensitive, first spelling wins, within one file only
   ▼
 Splitting              NOT IN THE APP. One upload = one WordList. Removed after commit 90be664.
-                       Offline: split_vocab_file.py (500 words per file)
+                       Offline: scripts/split_vocab_file.py (500 words per file)
   ▼
 Storage                WordList.objects.create + Vocabulary.objects.bulk_create (in the request)
   ▼
