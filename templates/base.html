@@ -1,10 +1,10 @@
-{% load static %}<!DOCTYPE html>
+{% load static %}{% with current=request.resolver_match.url_name %}<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#F61500">
+    <meta name="theme-color" content="#FFFFFF">
     <meta name="description"
         content="VocabSwipe — learn words with swipeable cards. Upload your own list or play a public one.">
     <title>{% block title %}VocabSwipe{% endblock %}</title>
@@ -13,34 +13,68 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body class="{% block body_class %}{% endblock %}">
+    {# Icon sprite: referenced with <svg><use href="#i-name"></use></svg>. #}
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+            <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+            <symbol id="i-lists" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></symbol>
+            <symbol id="i-explore" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+            <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+            <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></symbol>
+            <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/></symbol>
+            <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+            <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></symbol>
+            <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+            <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+            <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+            <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+            <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+            <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21c-3.9 0-7-2.8-7-6.6 0-3.5 2.6-5.6 4-8.4.4 1.8 1.4 3 2.6 3.6C12 6.8 13.3 4.4 15.5 3c-.2 3.3 3.5 5.6 3.5 10.8C19 17.8 16 21 12 21z"/></symbol>
+            <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+        </defs>
+    </svg>
+
+    {% block header %}
     <header class="site-header">
-        <nav class="wrap">
-            <a href="{% url 'home' %}" class="brand">
-                <span class="brand-mark"></span>
+        <nav class="wrap topbar" aria-label="Main">
+            <a href="{% url 'home' %}" class="brand" aria-label="VocabSwipe home">
+                <img src="{% static 'favicon.svg' %}" alt="" width="24" height="24" class="brand-mark">
                 <span>VocabSwipe</span>
             </a>
 
+            {# Desktop links. On phones the same destinations live in the bottom tab bar. #}
             <div class="nav-links">
-                <a href="{% url 'explore' %}" class="nav-link">Explore</a>
+                <a href="{% url 'explore' %}" class="nav-link{% if current == 'explore' %} is-active{% endif %}"
+                    {% if current == 'explore' %}aria-current="page"{% endif %}>Explore</a>
                 {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" class="nav-link">My lists</a>
-                <a href="{% url 'game' %}" class="btn btn-primary btn-sm">Play</a>
+                <a href="{% url 'dashboard' %}" class="nav-link{% if current == 'dashboard' %} is-active{% endif %}"
+                    {% if current == 'dashboard' %}aria-current="page"{% endif %}>My lists</a>
+                {% endif %}
+            </div>
+
+            <div class="nav-actions">
+                {% if user.is_authenticated %}
+                <a href="{% url 'game' %}" class="btn btn-primary btn-sm nav-desktop">
+                    <svg class="icon icon-fill" aria-hidden="true"><use href="#i-play"></use></svg>Play</a>
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="nav-link" style="border:0;background:none;font:inherit;cursor:pointer">Log
-                        out</button>
+                    <button type="submit" class="icon-btn" aria-label="Log out" title="Log out">
+                        <svg class="icon" aria-hidden="true"><use href="#i-logout"></use></svg>
+                    </button>
                 </form>
                 {% else %}
-                <a href="{% url 'login' %}" class="nav-link">Log in</a>
+                <a href="{% url 'login' %}" class="nav-link nav-desktop{% if current == 'login' %} is-active{% endif %}">Log in</a>
                 <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">Sign up</a>
                 {% endif %}
             </div>
         </nav>
     </header>
+    {% endblock %}
 
     {% if messages %}
-    <div class="wrap flash-list">
+    <div class="flash-list" role="status">
         {% for message in messages %}
         <div class="flash {% if message.tags == 'error' %}flash-error{% endif %}">{{ message }}</div>
         {% endfor %}
@@ -51,16 +85,41 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% block tabbar %}
+    <nav class="tabbar" aria-label="Main">
+        {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}" class="tab{% if current == 'dashboard' %} is-active{% endif %}"
+            {% if current == 'dashboard' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-lists"></use></svg><span>My lists</span></a>
+        <a href="{% url 'game' %}" class="tab tab-play">
+            <span class="tab-play-dot"><svg class="icon" aria-hidden="true"><use href="#i-play"></use></svg></span><span>Play</span></a>
+        <a href="{% url 'explore' %}" class="tab{% if current == 'explore' %} is-active{% endif %}"
+            {% if current == 'explore' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-explore"></use></svg><span>Explore</span></a>
+        {% else %}
+        <a href="{% url 'home' %}" class="tab{% if current == 'home' %} is-active{% endif %}"
+            {% if current == 'home' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-home"></use></svg><span>Home</span></a>
+        <a href="{% url 'explore' %}" class="tab{% if current == 'explore' %} is-active{% endif %}"
+            {% if current == 'explore' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-explore"></use></svg><span>Explore</span></a>
+        <a href="{% url 'login' %}" class="tab{% if current == 'login' or current == 'signup' %} is-active{% endif %}"
+            {% if current == 'login' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg><span>Log in</span></a>
+        {% endif %}
+    </nav>
+    {% endblock %}
+
+    {% block footer %}
     <footer class="site-footer">
         <div class="wrap">
             <span>&copy; {% now "Y" %} VocabSwipe</span>
-            <span class="row">
-                <a href="{% url 'explore' %}" class="nav-link">Explore lists</a>
-            </span>
+            <a href="{% url 'explore' %}" class="nav-link">Explore lists</a>
         </div>
     </footer>
+    {% endblock %}
 
     {% block extra_js %}{% endblock %}
 </body>
 
-</html>
+</html>{% endwith %}

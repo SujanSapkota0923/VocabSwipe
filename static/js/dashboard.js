@@ -92,6 +92,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
+    // ---- List menus: one open at a time, closed by an outside tap or Escape ----
+
+    const menus = document.querySelectorAll('details.menu');
+    menus.forEach(menu => {
+        menu.addEventListener('toggle', () => {
+            if (!menu.open) return;
+            menus.forEach(other => { if (other !== menu) other.open = false; });
+        });
+    });
+
+    document.addEventListener('click', (e) => {
+        menus.forEach(menu => {
+            if (menu.open && !menu.contains(e.target)) menu.open = false;
+        });
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        menus.forEach(menu => {
+            if (!menu.open) return;
+            menu.open = false;
+            menu.querySelector('summary').focus();
+        });
+    });
+
     // ---- Share codes ----
 
     document.querySelectorAll('.copy-code').forEach(button => {

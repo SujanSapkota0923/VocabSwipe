@@ -3,33 +3,38 @@
 
 {% block content %}
 <div class="wrap page">
-    <h1 class="title">Public lists</h1>
-    <p class="muted" style="margin:8px 0 24px">Anyone can play these — no account needed.</p>
+    <h1 class="title">Explore</h1>
+    <p class="small muted" style="margin:4px 0 16px">Public lists anyone can play — no account needed.</p>
 
-    <form method="get" class="form-row" style="max-width:26rem;margin-bottom:32px">
-        <div class="grow">
-            <label for="search-lists" class="sr-only">Search lists</label>
-            <input type="search" id="search-lists" name="q" value="{{ query }}" placeholder="Search lists">
-        </div>
-        <button type="submit" class="btn btn-dark">Search</button>
+    <form method="get" role="search" class="search-field" style="max-width:28rem;margin-bottom:20px">
+        <label for="search-lists" class="sr-only">Search lists</label>
+        <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+        <input type="search" id="search-lists" name="q" value="{{ query }}" placeholder="Search lists"
+            enterkeyhint="search" autocomplete="off">
     </form>
 
     <div class="grid grid-3">
         {% for item in lists %}
-        <div class="card">
-            <h3 class="truncate" style="font-weight:600">{{ item.name }}</h3>
-            <p class="small muted" style="margin-top:4px">{{ item.description|default:"No description." }}</p>
-            <p class="tiny muted" style="margin-top:12px">{{ item.total }} word{{ item.total|pluralize }}{% if item.owner %} ·
-                by {{ item.owner.username }}{% endif %}</p>
-            <div class="spacer"></div>
-            <div class="btn-pair">
-                <a href="{% url 'game' %}?list_id={{ item.id }}&mode=classic" class="btn btn-primary btn-sm">Classic</a>
-                <a href="{% url 'game' %}?list_id={{ item.id }}&mode=timer" class="btn btn-outline btn-sm">Timer</a>
+        <article class="card list-card">
+            <div class="list-card-head">
+                <h3 class="clamp-2">{{ item.name }}</h3>
             </div>
-        </div>
+            {% if item.description %}<p class="small muted clamp-2">{{ item.description }}</p>{% endif %}
+            <p class="list-meta nums">{{ item.total }} word{{ item.total|pluralize }}{% if item.owner %} · by
+                {{ item.owner.username }}{% endif %}</p>
+            <div class="spacer"></div>
+            <div class="list-actions">
+                <a href="{% url 'game' %}?list_id={{ item.id }}&amp;mode=classic" class="btn btn-primary">
+                    <svg class="icon icon-fill" aria-hidden="true"><use href="#i-play"></use></svg>Play</a>
+                <a href="{% url 'game' %}?list_id={{ item.id }}&amp;mode=timer" class="btn btn-outline"
+                    aria-label="Play {{ item.name }} in timer mode" title="Timer mode">
+                    <svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg></a>
+            </div>
+        </article>
         {% empty %}
         <div class="card card-empty span-all">
-            {% if query %}No list matches "{{ query }}".{% else %}No public lists yet.{% endif %}
+            <p>{% if query %}No list matches “{{ query }}”.{% else %}No public lists yet.{% endif %}</p>
+            {% if query %}<a href="{% url 'explore' %}" class="btn btn-outline btn-sm">Clear search</a>{% endif %}
         </div>
         {% endfor %}
     </div>

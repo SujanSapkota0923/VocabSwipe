@@ -5,180 +5,238 @@
 {% block content %}
 <div class="wrap page">
 
-    <div class="row-between" style="margin-bottom:32px">
-        <div>
-            <h1 class="title">Hi, {{ user.username }}</h1>
-            <p class="small muted row" style="margin-top:6px">
-                <span>{{ total_words }} word{{ total_words|pluralize }} available · {{ known_total }} marked known</span>
-                {% if stats.current_streak %}
-                <span class="badge badge-brand">{{ stats.current_streak }} day streak</span>
-                {% endif %}
-            </p>
-        </div>
-        <div class="row">
-            <a href="{% url 'game' %}?mode=classic" class="btn btn-primary btn-sm">Play all</a>
-            <a href="{% url 'game' %}?mode=timer" class="btn btn-outline btn-sm">Timer mode</a>
-        </div>
-    </div>
+    <section>
+        <h1 class="title truncate">Hi, {{ user.username }}</h1>
 
-    <div class="grid grid-2 grid-start" style="margin-bottom:40px">
-        <div class="card card-pad">
-            <h2 class="section-title">Play a friend's list</h2>
-            <p class="small muted" style="margin:4px 0 16px">Enter the 6-character code they shared.</p>
-            <form method="post" class="form-row">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="join">
-                <div class="grow">
-                    <label for="{{ join_form.code.id_for_label }}" class="sr-only">Share code</label>
-                    {{ join_form.code }}
-                    {% for error in join_form.code.errors %}<p class="error">{{ error }}</p>{% endfor %}
+        <div class="stats">
+            <div class="stat">
+                <p class="stat-value nums">{{ total_words }}</p>
+                <p class="stat-label">word{{ total_words|pluralize }}</p>
+            </div>
+            <div class="stat">
+                <p class="stat-value nums">{{ known_total }}</p>
+                <p class="stat-label">known</p>
+            </div>
+            <div class="stat">
+                <p class="stat-value nums">{% if stats.current_streak %}<svg class="icon" aria-hidden="true"><use href="#i-flame"></use></svg>{% endif %}{{ stats.current_streak }}</p>
+                <p class="stat-label">day streak</p>
+            </div>
+        </div>
+
+        {% if total_words %}
+        <div class="quick-actions">
+            <a href="{% url 'game' %}?mode=classic" class="btn btn-primary btn-lg">
+                <svg class="icon icon-fill" aria-hidden="true"><use href="#i-play"></use></svg>Play all words</a>
+            <a href="{% url 'game' %}?mode=timer" class="btn btn-outline btn-lg" aria-label="Play all words in timer mode"
+                title="Timer mode">
+                <svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg></a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-head">
+            <h2 class="section-title">My lists</h2>
+            <span class="tiny muted">{{ my_lists|length }}</span>
+        </div>
+
+        <div class="grid grid-3">
+            {% for item in my_lists %}
+            <article class="card list-card">
+                <div class="list-card-head">
+                    <h3 class="clamp-2">{{ item.obj.name }}</h3>
+                    {% if item.obj.is_public %}<span class="badge badge-brand">Public</span>{% endif %}
+                    <details class="menu">
+                        <summary class="icon-btn" aria-label="Options for {{ item.obj.name }}">
+                            <svg class="icon" aria-hidden="true"><use href="#i-more"></use></svg>
+                        </summary>
+                        <div class="menu-panel">
+                            <div class="menu-code">
+                                <span class="tiny muted">Share code <code class="code-chip">{{ item.obj.share_code }}</code></span>
+                                <button type="button" class="copy-code btn-link" data-code="{{ item.obj.share_code }}">Copy</button>
+                            </div>
+                            <form action="{% url 'toggle_public' item.obj.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="menu-item">
+                                    {% if item.obj.is_public %}Make private{% else %}Make public{% endif %}
+                                </button>
+                            </form>
+                            <a href="{% url 'list_settings' item.obj.id %}" class="menu-item">Edit details</a>
+                            <form action="{% url 'delete_list' item.obj.id %}" method="post"
+                                onsubmit="return confirm('Delete this list and all its words? This cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="menu-item menu-item-danger">Delete list</button>
+                            </form>
+                        </div>
+                    </details>
                 </div>
-                <button type="submit" class="btn btn-dark">Join</button>
-            </form>
-        </div>
-
-        <div class="card card-pad">
-            <h2 class="section-title">Upload a list</h2>
-            <p class="small muted" style="margin:4px 0 16px">
-                Format: <code>word, meaning 1; meaning 2</code>. A file of bare words works too — the meanings are
-                looked up for you.
-            </p>
-            <form method="post" enctype="multipart/form-data" id="upload-form" class="stack">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="upload">
 
                 <div>
-                    <label for="{{ form.name.id_for_label }}" class="sr-only">List name</label>
-                    {{ form.name }}
+                    <p class="list-meta nums">{{ item.total }} word{{ item.total|pluralize }} · {{ item.known }} known</p>
+                    {% if item.obj.is_processing %}
+                    <div class="processing-row" style="margin-top:10px" data-list-id="{{ item.obj.id }}">
+                        <div class="row-between tiny muted" style="margin-bottom:6px">
+                            <span>Looking up meanings</span>
+                            <span class="processing-pct nums">{{ item.obj.progress_percentage }}%</span>
+                        </div>
+                        <div class="meter">
+                            <span class="processing-bar" style="width: {{ item.obj.progress_percentage }}%"></span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="meter meter-good" style="margin-top:10px" role="img"
+                        aria-label="{{ item.known }} of {{ item.total }} known">
+                        <span style="width: {% widthratio item.known item.total 100 %}%"></span>
+                    </div>
+                    {% if item.obj.processing_status == 'failed' %}
+                    <p class="tiny accent" style="margin-top:8px">Meaning lookup failed. The words are still playable.</p>
+                    {% endif %}
+                    {% endif %}
                 </div>
-                <div>
-                    <label for="{{ form.description.id_for_label }}" class="sr-only">Description</label>
-                    {{ form.description }}
+
+                <div class="spacer"></div>
+
+                <div class="list-actions">
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;mode=classic" class="btn btn-primary">
+                        <svg class="icon icon-fill" aria-hidden="true"><use href="#i-play"></use></svg>Play</a>
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;mode=timer" class="btn btn-outline"
+                        aria-label="Play {{ item.obj.name }} in timer mode" title="Timer mode">
+                        <svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg></a>
+                    {% if item.unknown %}
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;review_mode=true"
+                        class="btn btn-soft btn-review">Review {{ item.unknown }} word{{ item.unknown|pluralize }}</a>
+                    {% endif %}
                 </div>
-
-                <div id="drop-zone" class="dropzone" role="button" tabindex="0">
-                    <p class="small" style="font-weight:500">Tap or drop your file here</p>
-                    <p class="tiny muted" style="margin-top:4px">.csv, .txt or .xlsx</p>
-                    <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.xlsx">
-                </div>
-
-                <div id="file-selected" class="file-chip hidden">
-                    <span id="file-name" class="small truncate"></span>
-                    <button type="button" id="remove-file" class="btn-link btn-link-danger">Remove</button>
-                </div>
-
-                {% if form.file.errors %}
-                <p class="error">{{ form.file.errors|striptags }}</p>
-                {% endif %}
-
-                <label class="checkbox">
-                    {{ form.is_public }}
-                    <span>
-                        <span style="font-weight:500">Make it public</span>
-                        <span class="tiny muted" style="display:block">Anyone can find and play it without an
-                            account.</span>
-                    </span>
-                </label>
-
-                <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Upload list</button>
-            </form>
+            </article>
+            {% empty %}
+            <div class="card card-empty span-all">
+                <p>No lists yet. Upload a word file below, or join a friend's list with their code.</p>
+            </div>
+            {% endfor %}
         </div>
-    </div>
-
-    <h2 class="section-title" style="margin-bottom:16px">My lists</h2>
-    <div class="grid grid-3">
-        {% for item in my_lists %}
-        <div class="card">
-            <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
-                <h3 class="truncate" style="font-weight:600">{{ item.obj.name }}</h3>
-                {% if item.obj.is_public %}
-                <span class="badge badge-brand badge-square">Public</span>
-                {% else %}
-                <span class="badge badge-square">Private</span>
-                {% endif %}
-            </div>
-            <p class="tiny muted" style="margin-top:6px">{{ item.total }} word{{ item.total|pluralize }} ·
-                {{ item.known }} known · {{ item.unknown }} to review</p>
-
-            {% if item.obj.is_processing %}
-            <div class="processing-row" style="margin-top:12px" data-list-id="{{ item.obj.id }}">
-                <div class="row tiny muted" style="justify-content:space-between;margin-bottom:6px">
-                    <span>Looking up meanings</span>
-                    <span class="processing-pct nums">{{ item.obj.progress_percentage }}%</span>
-                </div>
-                <div class="meter">
-                    <span class="processing-bar" style="width: {{ item.obj.progress_percentage }}%"></span>
-                </div>
-            </div>
-            {% elif item.obj.processing_status == 'failed' %}
-            <p class="tiny" style="margin-top:12px;color:var(--brand-dark)">Meaning lookup failed. The words are still
-                playable.</p>
-            {% endif %}
-
-            <div class="row" style="margin-top:12px">
-                <span class="tiny muted">Code</span>
-                <code class="code-chip">{{ item.obj.share_code }}</code>
-                <button type="button" class="copy-code btn-link" data-code="{{ item.obj.share_code }}">Copy</button>
-            </div>
-
-            <div class="spacer"></div>
-
-            <div class="btn-pair">
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic" class="btn btn-primary btn-sm">Classic</a>
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer" class="btn btn-outline btn-sm">Timer</a>
-                {% if item.unknown %}
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                    class="btn btn-soft btn-sm span-all">Review {{ item.unknown }}</a>
-                {% endif %}
-            </div>
-
-            <div class="row divider tiny">
-                <form action="{% url 'toggle_public' item.obj.id %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-link">
-                        {% if item.obj.is_public %}Make private{% else %}Make public{% endif %}
-                    </button>
-                </form>
-                <a href="{% url 'list_settings' item.obj.id %}" class="btn-link">Edit</a>
-                <form action="{% url 'delete_list' item.obj.id %}" method="post" style="margin-left:auto"
-                    onsubmit="return confirm('Delete this list and all its words? This cannot be undone.');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-link btn-link-danger">Delete</button>
-                </form>
-            </div>
-        </div>
-        {% empty %}
-        <div class="card card-empty span-all">
-            No lists yet. Upload a file above to create your first one.
-        </div>
-        {% endfor %}
-    </div>
+    </section>
 
     {% if joined_lists %}
-    <h2 class="section-title" style="margin:40px 0 16px">Friends' lists</h2>
-    <div class="grid grid-3">
-        {% for item in joined_lists %}
-        <div class="card">
-            <h3 class="truncate" style="font-weight:600">{{ item.obj.name }}</h3>
-            <p class="tiny muted" style="margin-top:6px">by {{ item.obj.owner.username }} · {{ item.total }} words ·
-                {{ item.known }} known</p>
-            <div class="spacer"></div>
-            <div class="btn-pair">
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic" class="btn btn-primary btn-sm">Classic</a>
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer" class="btn btn-outline btn-sm">Timer</a>
-                {% if item.unknown %}
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                    class="btn btn-soft btn-sm span-all">Review {{ item.unknown }}</a>
-                {% endif %}
-            </div>
-            <form action="{% url 'leave_list' item.obj.id %}" method="post" class="divider">
-                {% csrf_token %}
-                <button type="submit" class="btn-link btn-link-danger">Remove from my lists</button>
-            </form>
+    <section class="section">
+        <div class="section-head">
+            <h2 class="section-title">Friends' lists</h2>
+            <span class="tiny muted">{{ joined_lists|length }}</span>
         </div>
-        {% endfor %}
-    </div>
+        <div class="grid grid-3">
+            {% for item in joined_lists %}
+            <article class="card list-card">
+                <div class="list-card-head">
+                    <h3 class="clamp-2">{{ item.obj.name }}</h3>
+                    <details class="menu">
+                        <summary class="icon-btn" aria-label="Options for {{ item.obj.name }}">
+                            <svg class="icon" aria-hidden="true"><use href="#i-more"></use></svg>
+                        </summary>
+                        <div class="menu-panel">
+                            <form action="{% url 'leave_list' item.obj.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="menu-item menu-item-danger">Remove from my lists</button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+                <div>
+                    <p class="list-meta nums">{% if item.obj.owner %}by {{ item.obj.owner.username }} · {% endif %}{{ item.total }}
+                        word{{ item.total|pluralize }} · {{ item.known }} known</p>
+                    <div class="meter meter-good" style="margin-top:10px" role="img"
+                        aria-label="{{ item.known }} of {{ item.total }} known">
+                        <span style="width: {% widthratio item.known item.total 100 %}%"></span>
+                    </div>
+                </div>
+                <div class="spacer"></div>
+                <div class="list-actions">
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;mode=classic" class="btn btn-primary">
+                        <svg class="icon icon-fill" aria-hidden="true"><use href="#i-play"></use></svg>Play</a>
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;mode=timer" class="btn btn-outline"
+                        aria-label="Play {{ item.obj.name }} in timer mode" title="Timer mode">
+                        <svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg></a>
+                    {% if item.unknown %}
+                    <a href="{% url 'game' %}?list_id={{ item.obj.id }}&amp;review_mode=true"
+                        class="btn btn-soft btn-review">Review {{ item.unknown }} word{{ item.unknown|pluralize }}</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
     {% endif %}
+
+    <section class="section">
+        <h2 class="section-title" style="margin-bottom:12px">Add a list</h2>
+        <div class="grid grid-2 grid-start">
+            <div class="card card-pad">
+                <h3 class="section-title">Join with a code</h3>
+                <p class="small muted" style="margin:4px 0 14px">Enter the 6-character code a friend shared.</p>
+                <form method="post" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="join">
+                    <div class="grow">
+                        <label for="{{ join_form.code.id_for_label }}" class="sr-only">Share code</label>
+                        {{ join_form.code }}
+                    </div>
+                    <button type="submit" class="btn btn-dark">Join</button>
+                </form>
+                {% for error in join_form.code.errors %}<p class="error">{{ error }}</p>{% endfor %}
+            </div>
+
+            <details class="card card-pad disclosure" {% if form.errors or not my_lists %}open{% endif %}>
+                <summary class="disclosure-head">
+                    <span>
+                        <span class="section-title" style="display:block">Upload a file</span>
+                        <span class="small muted">.csv, .txt or .xlsx, one word per line</span>
+                    </span>
+                    <svg class="icon chev" aria-hidden="true"><use href="#i-plus"></use></svg>
+                </summary>
+
+                <form method="post" enctype="multipart/form-data" id="upload-form" class="stack disclosure-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="upload">
+
+                    <p class="small muted">Format: <code>word, meaning 1; meaning 2</code>. Bare words work too — the
+                        meanings are looked up for you.</p>
+
+                    <div id="drop-zone" class="dropzone" role="button" tabindex="0" aria-label="Choose a file">
+                        <p class="small" style="font-weight:600">Tap to choose a file</p>
+                        <p class="tiny muted" style="margin-top:2px">or drop it here</p>
+                        <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.tsv,.xlsx">
+                    </div>
+
+                    <div id="file-selected" class="file-chip hidden">
+                        <span id="file-name" class="small truncate"></span>
+                        <button type="button" id="remove-file" class="btn btn-sm btn-outline">Remove</button>
+                    </div>
+
+                    {% if form.file.errors %}
+                    <p class="error">{{ form.file.errors|striptags }}</p>
+                    {% endif %}
+
+                    <div>
+                        <label for="{{ form.name.id_for_label }}" class="sr-only">List name</label>
+                        {{ form.name }}
+                    </div>
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="sr-only">Description</label>
+                        {{ form.description }}
+                    </div>
+
+                    <label class="checkbox">
+                        {{ form.is_public }}
+                        <span>
+                            <span style="font-weight:600">Make it public</span>
+                            <span class="tiny muted" style="display:block">Anyone can find and play it without an
+                                account.</span>
+                        </span>
+                    </label>
+
+                    <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Upload list</button>
+                </form>
+            </details>
+        </div>
+    </section>
 </div>
 {% endblock %}
 

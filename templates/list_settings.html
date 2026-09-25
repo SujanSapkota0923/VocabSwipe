@@ -3,8 +3,8 @@
 
 {% block content %}
 <div class="wrap wrap-narrow page">
-    <a href="{% url 'dashboard' %}" class="small muted">&larr; Back to my lists</a>
-    <h1 class="title" style="margin:12px 0 4px">List settings</h1>
+    <a href="{% url 'dashboard' %}" class="btn-link" style="display:inline-flex;min-height:44px;align-items:center">&larr; My lists</a>
+    <h1 class="title" style="margin:4px 0">List settings</h1>
     <p class="small muted" style="margin-bottom:28px">
         Share code <code class="code-chip">{{ word_list.share_code }}</code> · {{ word_list.word_count }} words
     </p>

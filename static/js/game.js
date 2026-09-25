@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const replayBtn = document.getElementById('replay-btn');
     const completionScreen = document.getElementById('completion-screen');
     const completionMessage = document.getElementById('completion-message');
+    const completionScore = document.getElementById('completion-score');
+    const reviewLink = document.getElementById('review-link');
     const emptyScreen = document.getElementById('empty-screen');
     const loadingScreen = document.getElementById('loading-screen');
     const errorScreen = document.getElementById('error-screen');
@@ -14,8 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreUnknownEl = document.getElementById('score-unknown');
     const timerBar = document.getElementById('timer-bar');
     const timerText = document.getElementById('timer-text');
+    const controls = document.getElementById('game-controls');
+    const answerButtons = document.getElementById('answer-buttons');
     const btnKnown = document.getElementById('btn-known');
     const btnUnknown = document.getElementById('btn-unknown');
+    const btnNext = document.getElementById('btn-next');
     const streakBadge = document.getElementById('streak-badge');
     const streakCount = document.getElementById('streak-count');
 
@@ -26,17 +31,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardSeconds = parseInt(root.dataset.seconds, 10) || 10;
     const guestStore = `vocabswipe:guest:${listId || 'all'}`;
 
+    // A drag past this distance, or a quick flick past FLICK_DISTANCE, answers the card.
+    const SWIPE_DISTANCE = 96;
+    const FLICK_DISTANCE = 36;
+    const FLICK_SPEED = 0.55; // px per ms
+    const LEAVE_MS = 220;
+    const TIMEOUT_REVEAL_MS = 1600;
+
     let cards = [];
     let currentIndex = 0;
     let knownCount = 0;
     let unknownCount = 0;
-
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let currentX = 0;
-    let currentY = 0;
-    const swipeThreshold = 90;
+    let lastAnswer = null; // true = known, false = review, for the fly-out direction
+    let advancing = false;
+    let autoAdvanceId = null;
 
     let timerId = null;
     let deadline = 0;
@@ -109,18 +117,24 @@ document.addEventListener('DOMContentLoaded', () => {
         new Audio(url).play().catch(err => console.error('Audio playback failed', err));
     }
 
+    // ---- Screens ----
+
+    function showOnly(screen) {
+        [cardStack, loadingScreen, errorScreen, emptyScreen, completionScreen].forEach(el => {
+            el.classList.toggle('hidden', el !== screen);
+        });
+        // Answer buttons only make sense while there is a card to answer.
+        controls.classList.toggle('is-idle', screen !== cardStack);
+    }
+
     async function fetchCards() {
         const params = new URLSearchParams();
         if (listId) params.append('list_id', listId);
         if (reviewMode) params.append('review_mode', 'true');
         const url = '/api/cards/' + (params.toString() ? `?${params}` : '');
 
-        loadingScreen.classList.remove('hidden');
-        errorScreen.classList.add('hidden');
-        emptyScreen.classList.add('hidden');
-        cardStack.classList.add('hidden');
+        showOnly(loadingScreen);
 
-        let failed = false;
         try {
             const response = await api(url);
             if (!response.ok) throw new Error(`Request failed with ${response.status}`);
@@ -130,13 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // its own screen with a retry instead of "No words here".
             console.error('Failed to fetch cards:', error);
             cards = [];
-            failed = true;
-        }
-
-        loadingScreen.classList.add('hidden');
-
-        if (failed) {
-            errorScreen.classList.remove('hidden');
+            showOnly(errorScreen);
             return;
         }
 
@@ -145,13 +153,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!cards.length) {
-            emptyScreen.classList.remove('hidden');
+            showOnly(emptyScreen);
             return;
         }
 
-        cardStack.classList.remove('hidden');
-        updateProgress();
+        startDeck();
+    }
+
+    function startDeck() {
+        currentIndex = 0;
+        knownCount = 0;
+        unknownCount = 0;
+        showOnly(cardStack);
         renderStack();
+        setControls('answer');
+        updateProgress();
         startTimer();
     }
 
@@ -160,21 +176,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateProgress() {
         const progress = cards.length ? (currentIndex / cards.length) * 100 : 0;
         progressBar.style.width = `${progress}%`;
-        progressText.textContent = `${currentIndex} / ${cards.length}`;
+        progressText.textContent = `${Math.min(currentIndex + 1, cards.length)} / ${cards.length}`;
         scoreKnownEl.textContent = knownCount;
         scoreUnknownEl.textContent = unknownCount;
-
-        if (cards.length && currentIndex >= cards.length) {
-            stopTimer();
-            setTimeout(showCompletion, 350);
-        }
     }
 
     function showCompletion() {
-        cardStack.classList.add('hidden');
-        completionScreen.classList.remove('hidden');
+        stopTimer();
+        progressBar.style.width = '100%';
+        progressText.textContent = `${cards.length} / ${cards.length}`;
+        const answered = knownCount + unknownCount;
+        const score = answered ? Math.round((knownCount / answered) * 100) : 0;
+        completionScore.textContent = `${score}%`;
         completionMessage.textContent =
-            `${knownCount} known, ${unknownCount} to review out of ${cards.length} words.`;
+            `${knownCount} known · ${unknownCount} to review · ${cards.length} word${cards.length === 1 ? '' : 's'}`;
+        if (reviewLink) reviewLink.classList.toggle('hidden', unknownCount === 0);
+        showOnly(completionScreen);
+        replayBtn.focus({ preventScroll: true });
     }
 
     // ---- Timer mode ----
@@ -184,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         stopTimer();
         deadline = Date.now() + cardSeconds * 1000;
         timerBar.style.width = '100%';
-        timerText.textContent = `${cardSeconds}s`;
+        if (timerText) timerText.textContent = `${cardSeconds}s`;
         timerId = setInterval(tick, 100);
     }
 
@@ -197,9 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function tick() {
         const remaining = Math.max(0, deadline - Date.now());
-        const ratio = remaining / (cardSeconds * 1000);
-        timerBar.style.width = `${ratio * 100}%`;
-        timerText.textContent = `${Math.ceil(remaining / 1000)}s`;
+        timerBar.style.width = `${(remaining / (cardSeconds * 1000)) * 100}%`;
+        if (timerText) timerText.textContent = `${Math.ceil(remaining / 1000)}s`;
 
         if (remaining <= 0) {
             stopTimer();
@@ -209,61 +226,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function timeUp() {
         const topCard = getTopCard();
-        if (!topCard) return;
-        if (topCard.querySelector('.card-inner').classList.contains('is-flipped')) return;
-        handleAnswer(topCard, false);
-        setTimeout(nextCard, 1600);
+        if (!topCard || isRevealed(topCard)) return;
+        answer(topCard, false);
+        autoAdvanceId = setTimeout(nextCard, TIMEOUT_REVEAL_MS);
+    }
+
+    // ---- Controls ----
+
+    function setControls(state) {
+        const revealed = state === 'next';
+        answerButtons.classList.toggle('hidden', revealed);
+        btnNext.classList.toggle('hidden', !revealed);
     }
 
     // ---- Cards ----
 
     function getTopCard() {
-        return cardStack.querySelector('.vocab-card:last-child');
+        const all = cardStack.querySelectorAll('.vocab-card:not(.is-leaving)');
+        return all.length ? all[all.length - 1] : null;
     }
 
+    function isRevealed(card) {
+        return card.classList.contains('is-revealed');
+    }
+
+    // The stack holds up to three cards, the top one last. A layer in front of
+    // them carries the card that is flying away, so the next card can move up
+    // while it leaves.
     function renderStack() {
         cardStack.innerHTML = '';
-        if (currentIndex >= cards.length) return;
+        const flyLayer = document.createElement('div');
+        flyLayer.className = 'fly-layer';
+        cardStack.appendChild(flyLayer);
 
         for (let i = Math.min(currentIndex + 2, cards.length - 1); i >= currentIndex; i--) {
-            cardStack.appendChild(createCardElement(cards[i], i === currentIndex));
+            cardStack.appendChild(createCardElement(cards[i]));
         }
+        const top = getTopCard();
+        if (top) initCardInteractions(top);
     }
 
-    function createCardElement(data, isTop) {
-        const card = document.createElement('div');
-        card.className = 'vocab-card';
-        card.dataset.id = data.id;
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
 
-        const inner = document.createElement('div');
-        inner.className = 'card-inner';
+    function icon(name) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'icon');
+        svg.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `#${name}`);
+        svg.appendChild(use);
+        return svg;
+    }
+
+    function createCardElement(data) {
+        const card = el('article', 'vocab-card');
+        card.dataset.id = data.id;
+        card.setAttribute('aria-label', `Card: ${data.word}`);
+
+        const inner = el('div', 'card-inner');
 
         // Front face
-        const front = document.createElement('div');
-        front.className = 'card-face card-front';
-        front.innerHTML = `
-            <div class="swipe-indicator know">Know</div>
-            <div class="swipe-indicator dont-know">Review</div>
-        `;
-
-        const word = document.createElement('h2');
-        word.className = 'card-word';
-        word.textContent = data.word;
-        front.appendChild(word);
-
-        const hint = document.createElement('p');
-        hint.className = 'card-hint';
-        hint.textContent = 'Swipe to reveal';
-        front.appendChild(hint);
+        const front = el('div', 'card-face card-front');
+        front.appendChild(el('span', 'swipe-stamp stamp-know', 'Know'));
+        front.appendChild(el('span', 'swipe-stamp stamp-review', 'Review'));
+        front.appendChild(el('h2', 'card-word', data.word));
 
         if (data.audio_url) {
-            const audioBtn = document.createElement('button');
+            const audioBtn = el('button', 'icon-btn audio-btn');
             audioBtn.type = 'button';
-            audioBtn.className = 'audio-btn';
             audioBtn.setAttribute('aria-label', `Play pronunciation of ${data.word}`);
-            audioBtn.textContent = '♪';
-            audioBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-            audioBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            audioBtn.appendChild(icon('i-sound'));
+            // Keep a tap on the speaker from starting a drag.
+            audioBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
             audioBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 playAudio(data.audio_url);
@@ -271,133 +310,113 @@ document.addEventListener('DOMContentLoaded', () => {
             front.appendChild(audioBtn);
         }
 
+        const hint = el('p', 'card-hint');
+        hint.appendChild(el('span', '', '← Don’t know'));
+        hint.appendChild(el('span', '', 'Know it →'));
+        front.appendChild(hint);
+
         // Back face
-        const back = document.createElement('div');
-        back.className = 'card-face card-back';
+        const back = el('div', 'card-face card-back');
+        back.appendChild(el('p', 'card-back-word', data.word));
 
         const meanings = (data.meanings && data.meanings.length)
             ? data.meanings
             : ['No meaning saved for this word.'];
 
-        const backWord = document.createElement('p');
-        backWord.className = 'card-back-word';
-        backWord.textContent = data.word;
-        back.appendChild(backWord);
-
-        const meaningWrap = document.createElement('div');
-        meaningWrap.className = 'meaning-list';
-        meanings.forEach((meaning, index) => {
-            const row = document.createElement('div');
-            row.className = 'meaning';
-            if (meanings.length > 1) {
-                const label = document.createElement('span');
-                label.className = 'meaning-label';
-                label.textContent = `Meaning ${index + 1}`;
-                row.appendChild(label);
-            }
-            const text = document.createElement('p');
-            text.className = '';
-            text.textContent = meaning;
-            row.appendChild(text);
-            meaningWrap.appendChild(row);
-        });
+        const meaningWrap = el('ol', 'meaning-list');
+        if (meanings.length === 1) meaningWrap.classList.add('is-single');
+        meanings.forEach(meaning => meaningWrap.appendChild(el('li', 'meaning', meaning)));
         back.appendChild(meaningWrap);
 
         if (data.example) {
-            const example = document.createElement('p');
-            example.className = 'card-example';
-            example.textContent = `“${data.example}”`;
-            back.appendChild(example);
+            back.appendChild(el('p', 'card-example', `“${data.example}”`));
         }
-
-        const nextWrap = document.createElement('div');
-        nextWrap.className = 'card-next';
-        nextWrap.innerHTML = `
-            <button class="next-btn btn btn-dark btn-block">Next card</button>
-        `;
-        back.appendChild(nextWrap);
 
         inner.appendChild(front);
         inner.appendChild(back);
         card.appendChild(inner);
-
-        if (isTop) initCardInteractions(card);
         return card;
     }
 
     function initCardInteractions(card) {
-        const inner = card.querySelector('.card-inner');
-        const nextBtn = card.querySelector('.next-btn');
+        let pointerId = null;
+        let startX = 0;
+        let startY = 0;
+        let dx = 0;
+        let dy = 0;
+        let lastX = 0;
+        let lastT = 0;
+        let velocity = 0;
+        let frame = null;
+        const knowStamp = card.querySelector('.stamp-know');
+        const reviewStamp = card.querySelector('.stamp-review');
 
-        card.addEventListener('mousedown', startDrag);
-        card.addEventListener('touchstart', startDrag, { passive: true });
+        function paint() {
+            frame = null;
+            const rotate = dx / 16;
+            card.style.transform = `translate3d(${dx}px, ${dy * 0.35}px, 0) rotate(${rotate}deg)`;
+            const strength = Math.min(Math.abs(dx) / SWIPE_DISTANCE, 1);
+            knowStamp.style.opacity = dx > 0 ? strength : 0;
+            reviewStamp.style.opacity = dx < 0 ? strength : 0;
+        }
 
-        nextBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            nextCard();
+        function resetStamps() {
+            knowStamp.style.opacity = 0;
+            reviewStamp.style.opacity = 0;
+        }
+
+        card.addEventListener('pointerdown', (e) => {
+            if (isRevealed(card) || advancing || !e.isPrimary) return;
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            pointerId = e.pointerId;
+            card.setPointerCapture(pointerId);
+            startX = lastX = e.clientX;
+            startY = e.clientY;
+            lastT = e.timeStamp;
+            dx = dy = velocity = 0;
+            card.classList.add('is-dragging');
         });
 
-        function startDrag(e) {
-            if (inner.classList.contains('is-flipped')) return;
+        card.addEventListener('pointermove', (e) => {
+            if (e.pointerId !== pointerId) return;
+            dx = e.clientX - startX;
+            dy = e.clientY - startY;
+            const dt = e.timeStamp - lastT;
+            if (dt > 0) velocity = (e.clientX - lastX) / dt;
+            lastX = e.clientX;
+            lastT = e.timeStamp;
+            if (!frame) frame = requestAnimationFrame(paint);
+        });
 
-            isDragging = true;
-            startX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
-            startY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
-
-            card.style.transition = 'none';
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('touchmove', drag, { passive: false });
-            document.addEventListener('mouseup', stopDrag);
-            document.addEventListener('touchend', stopDrag);
-        }
-
-        function drag(e) {
-            if (!isDragging) return;
-            if (e.type === 'touchmove') e.preventDefault();
-
-            currentX = (e.type === 'mousemove' ? e.clientX : e.touches[0].clientX) - startX;
-            currentY = (e.type === 'mousemove' ? e.clientY : e.touches[0].clientY) - startY;
-
-            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${currentX / 14}deg)`;
-
-            if (currentX > 20) {
-                card.classList.add('swipe-right');
-                card.classList.remove('swipe-left');
-            } else if (currentX < -20) {
-                card.classList.add('swipe-left');
-                card.classList.remove('swipe-right');
-            } else {
-                card.classList.remove('swipe-right', 'swipe-left');
+        function release(e) {
+            if (e.pointerId !== pointerId) return;
+            pointerId = null;
+            if (frame) {
+                cancelAnimationFrame(frame);
+                frame = null;
             }
-        }
+            card.classList.remove('is-dragging');
 
-        function stopDrag() {
-            if (!isDragging) return;
-            isDragging = false;
-
-            document.removeEventListener('mousemove', drag);
-            document.removeEventListener('touchmove', drag);
-            document.removeEventListener('mouseup', stopDrag);
-            document.removeEventListener('touchend', stopDrag);
-
-            if (Math.abs(currentX) > swipeThreshold) {
-                handleAnswer(card, currentX > 0);
+            const flicked = Math.abs(dx) > FLICK_DISTANCE && Math.abs(velocity) > FLICK_SPEED
+                && Math.sign(velocity) === Math.sign(dx);
+            if (e.type !== 'pointercancel' && (Math.abs(dx) > SWIPE_DISTANCE || flicked)) {
+                answer(card, dx > 0);
             } else {
-                card.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 card.style.transform = '';
-                card.classList.remove('swipe-right', 'swipe-left');
+                resetStamps();
             }
-
-            currentX = 0;
-            currentY = 0;
+            dx = dy = 0;
         }
+
+        card.addEventListener('pointerup', release);
+        card.addEventListener('pointercancel', release);
     }
 
-    function handleAnswer(card, isKnown) {
-        const inner = card.querySelector('.card-inner');
-        if (inner.classList.contains('is-flipped')) return;
+    function answer(card, isKnown) {
+        if (!card || isRevealed(card)) return;
 
         stopTimer();
+        lastAnswer = isKnown;
 
         if (isKnown) knownCount++; else unknownCount++;
         scoreKnownEl.textContent = knownCount;
@@ -419,68 +438,99 @@ document.addEventListener('DOMContentLoaded', () => {
             saveGuestKnown();
         }
 
-        inner.classList.add('is-flipped');
-        card.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        // Settle back to the centre and turn over to show the meaning.
         card.style.transform = '';
-        card.classList.remove('swipe-right', 'swipe-left');
+        card.querySelectorAll('.swipe-stamp').forEach(s => { s.style.opacity = 0; });
+        card.classList.add('is-revealed', isKnown ? 'was-known' : 'was-review');
+
+        const hadFocus = document.activeElement === btnKnown || document.activeElement === btnUnknown;
+        setControls('next');
+        if (hadFocus) btnNext.focus({ preventScroll: true });
     }
 
     function nextCard() {
+        if (advancing) return;
+        if (autoAdvanceId) {
+            clearTimeout(autoAdvanceId);
+            autoAdvanceId = null;
+        }
+        const top = getTopCard();
+        if (!top) return;
+
+        advancing = true;
         currentIndex++;
+
+        // Fly the answered card off in the direction it was answered.
+        const flyLayer = cardStack.querySelector('.fly-layer');
+        const direction = lastAnswer === false ? -1 : 1;
+        top.classList.add('is-leaving');
+        flyLayer.appendChild(top);
+        top.getBoundingClientRect(); // commit the start position so the move animates
+        top.style.transform =
+            `translate3d(${direction * (window.innerWidth * 0.9)}px, -24px, 0) rotate(${direction * 14}deg)`;
+        top.style.opacity = '0';
+        setTimeout(() => top.remove(), LEAVE_MS);
+
+        if (currentIndex >= cards.length) {
+            updateProgress();
+            setTimeout(() => {
+                advancing = false;
+                showCompletion();
+            }, LEAVE_MS);
+            return;
+        }
+
+        // Queue the card two places behind the new top, then let the new top
+        // accept input. The CSS transition moves the remaining cards up.
+        const incoming = currentIndex + 2;
+        if (incoming < cards.length) {
+            cardStack.insertBefore(createCardElement(cards[incoming]), flyLayer.nextSibling);
+        }
+        const newTop = getTopCard();
+        if (newTop) initCardInteractions(newTop);
+
+        setControls('answer');
         updateProgress();
-        renderStack();
-        if (currentIndex < cards.length) startTimer();
+        startTimer();
+        // Short lock so a double tap on "Next" cannot skip a card.
+        setTimeout(() => { advancing = false; }, 120);
     }
 
     function answerTop(isKnown) {
         const topCard = getTopCard();
         if (!topCard) return;
-        const flipped = topCard.querySelector('.card-inner').classList.contains('is-flipped');
-        if (flipped) {
-            nextCard();
-        } else {
-            handleAnswer(topCard, isKnown);
-        }
+        if (isRevealed(topCard)) nextCard(); else answer(topCard, isKnown);
     }
 
-    if (btnKnown) btnKnown.addEventListener('click', () => answerTop(true));
-    if (btnUnknown) btnUnknown.addEventListener('click', () => answerTop(false));
+    btnKnown.addEventListener('click', () => answerTop(true));
+    btnUnknown.addEventListener('click', () => answerTop(false));
+    btnNext.addEventListener('click', nextCard);
 
     document.addEventListener('keydown', (e) => {
-        if (currentIndex >= cards.length) return;
+        if (e.altKey || e.ctrlKey || e.metaKey) return;
+        // A focused button handles its own Enter/Space as a click.
+        if (e.target.closest && e.target.closest('button, a, input, textarea')) {
+            if (e.key === 'Enter' || e.key === ' ') return;
+        }
+        if (cardStack.classList.contains('hidden')) return;
         const topCard = getTopCard();
         if (!topCard) return;
-        const flipped = topCard.querySelector('.card-inner').classList.contains('is-flipped');
+        const revealed = isRevealed(topCard);
 
-        if (e.key === 'ArrowRight' && !flipped) {
-            handleAnswer(topCard, true);
-        } else if (e.key === 'ArrowLeft' && !flipped) {
-            handleAnswer(topCard, false);
-        } else if ((e.key === 'Enter' || e.key === ' ') && flipped) {
+        if (e.key === 'ArrowRight' && !revealed) {
+            e.preventDefault();
+            answer(topCard, true);
+        } else if (e.key === 'ArrowLeft' && !revealed) {
+            e.preventDefault();
+            answer(topCard, false);
+        } else if ((e.key === 'Enter' || e.key === ' ') && revealed) {
             e.preventDefault();
             nextCard();
         }
     });
 
-    if (retryBtn) {
-        retryBtn.addEventListener('click', () => {
-            currentIndex = 0;
-            knownCount = 0;
-            unknownCount = 0;
-            fetchCards();
-        });
-    }
-
-    replayBtn.addEventListener('click', () => {
-        currentIndex = 0;
-        knownCount = 0;
-        unknownCount = 0;
-        completionScreen.classList.add('hidden');
-        cardStack.classList.remove('hidden');
-        updateProgress();
-        renderStack();
-        startTimer();
-    });
+    retryBtn.addEventListener('click', fetchCards);
+    replayBtn.addEventListener('click', startDeck);
 
     fetchCards();
     fetchStats();

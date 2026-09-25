@@ -61,9 +61,9 @@ Learning system        /game/ + game.js → GET /api/cards/ → POST /api/cards/
 ## Learning flow
 
 1. `game_view` checks access (`can_play`) and renders `game.html` with mode, seconds, list, review flag.
-2. `game.js` fetches `/api/cards/` (all playable cards, random order) and renders a three-card stack.
-3. Answer by drag (threshold 90 px), buttons, or ← / →. Timer mode counts an expired card as "review".
-4. The card flips to show meanings and example; Next / Space / Enter moves on.
+2. `game.js` fetches `/api/cards/` (all playable cards, random order) and renders a three-card stack. The game page hides the site header, tab bar and footer and fills the viewport.
+3. Answer by swipe (Pointer Events: 96 px drag or a quick flick), the bottom buttons, or ← / →. Timer mode counts an expired card as "review".
+4. The card flips to show meanings and example; the bottom "Next card" button, Space or Enter sends it off and the next card moves up.
 5. Signed in: POST status → SM-2 update and streak. Guest: card IDs stored in `localStorage` under `vocabswipe:guest:<list|all>`.
 6. End of deck: known / to-review counts shown in the browser. Nothing is stored about the session.
 

@@ -4,7 +4,7 @@ Persistent project state: what VocabSwipe is, what has been verified, what is
 next. Read this before starting work. `claude.md` holds the full roadmap brief
 this plan is derived from; the detailed references live in `docs/`.
 
-Last updated: 2026-09-25 (FIX-002).
+Last updated: 2026-09-25 (UI-001).
 
 ## Project Overview
 
@@ -164,7 +164,7 @@ Confirmed during the audit:
 7. Words with no dictionary entry are saved with the placeholder text `No definition found for "…"` as `meaning_1`, which is indistinguishable from real data afterwards.
 8. `MAX_WORDS` truncates at 20,000 silently; the user is not told words were dropped.
 9. "Review N" on the dashboard counts unknown words, but review mode also serves due known words, so the numbers differ.
-10. Card front hint says "Swipe to reveal", but a swipe also records the answer.
+10. ~~Card front hint says "Swipe to reveal"~~ — fixed in UI-001 (hint now reads "← Don't know / Know it →").
 11. `AUTO_SPLIT_FEATURE.md` and `RATE_LIMIT_FIX.md` describe behaviour the code no longer has (50-word split, 1.5 s delay). `PDF_CONVERSION_GUIDE.md` and the root scripts hard-code `/Users/sujan/...` paths.
 12. `test_api.py` in the repo root matches the test discovery pattern and makes live network calls at import.
 13. `claude.md` (lowercase) asks for a `CLAUDE.md`; both names in one repo collide on macOS/Windows checkouts (see Important Decisions).
@@ -199,6 +199,20 @@ describe what already exists so it is reused, not rebuilt.
 - [ ] FIX-005 — Decide on `claude.md` vs `CLAUDE.md` (see Important Decisions)
 - [ ] FIX-006 — Restore the fail-fast `SECRET_KEY` guard (Known Issue 14); needs the owner's agreement since the fallback was added on purpose
 - [ ] FIX-007 — Owner checks the tracked `.env` (Known Issue 15): if it has real values, rotate them, `git rm --cached .env`, restore `.env.example`, add `.env` to `.gitignore`
+
+### UI/UX refinement
+
+- [x] UI-001 — Mobile-first UI/UX refinement, full-screen game — **COMPLETED**
+  - Completed: 2026-09-25
+  - Navigation: phones get a slim top bar (logo + Sign up or Log out) and a bottom tab bar (signed in: My lists / Play / Explore; guest: Home / Explore / Log in) with active states and safe-area padding. Desktop keeps top links from 768 px. Footer shows on desktop only.
+  - Game: full-screen view with no site chrome (`100dvh`, safe areas, no page scroll). Top bar has exit, title, progress and a timer toggle; compact known/review/streak chips; the card fills the remaining space; answer buttons sit in the thumb zone and turn into one "Next card" button after answering. The in-card Next button and the top guest banner were removed (the guest note moved to the finish screen).
+  - Swipe: Pointer Events with pointer capture, rAF-throttled `translate3d`, stamps that fade in with drag distance, flick detection, a fly-out in the answered direction, and the next card sliding up without re-rendering the stack. Cards underneath hide their word. The meaning side scrolls when long. Double taps on Next cannot skip a card; the timer auto-advance can no longer double-fire.
+  - States: skeleton loading, clearer empty and error screens, a finish screen with accuracy %, Play again, and "Review missed words" (signed in, list decks).
+  - Dashboard: stat tiles, "Play all" plus a timer button, list cards with a known-progress bar, Play/Timer/Review actions, and management (share code, visibility, edit, delete) moved into a "⋯" menu. Join and upload live under "Add a list"; upload is a disclosure that opens when there are no lists or on errors.
+  - Home: "Start playing" goes straight into the first public list. The decorative preview is desktop only. Explore: search field with icon, cards with Play/Timer.
+  - Style: one token set (colours checked for 4.5:1 contrast), 48 px minimum controls, 16 px inputs (no iOS zoom), inline SVG icon sprite, reduced-motion respected. Know = green, review = amber, brand red for primary actions.
+  - Verified: 48/48 Django tests; headless Chromium at 320×640, 375×667, 390×844, 430×932, 768×1024 and 1280×800 checked for horizontal overflow on every page, no page scroll in the game, controls on screen, drag-swipe reveal + status POST, Next button, ←/Space keys, button answers, double-tap guard, timer mode, deck completion, menu close, and no console errors. `collectstatic` with the production storage succeeds.
+  - No backend, API or URL changes.
 
 ### Phase 1 — Audit & Architecture
 
@@ -268,6 +282,8 @@ describe what already exists so it is reused, not rebuilt.
 
 - 2026-09-25 — TASK-001 to TASK-005 (audit, inventory, architecture, database review, security audit).
 - 2026-09-25 — FIX-001 (baseline committed), FIX-002 (id validation).
+- 2026-09-25 — Production 500 fix (collectstatic at start, Render hostname in `ALLOWED_HOSTS`).
+- 2026-09-25 — UI-001 mobile-first UI/UX refinement.
 
 ## In Progress
 

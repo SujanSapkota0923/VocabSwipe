@@ -1,82 +1,76 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}{% if word_list %}{{ word_list.name }}{% else %}Play{% endif %} · VocabSwipe{% endblock %}
+{% block body_class %}is-game{% endblock %}
+
+{# The game is a full-screen view: no site header, tab bar or footer. #}
+{% block header %}{% endblock %}
+{% block tabbar %}{% endblock %}
+{% block footer %}{% endblock %}
 
 {% block content %}
-<div class="wrap wrap-narrow page" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
+<div class="game" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
     data-list-id="{{ word_list.id|default:'' }}" data-review="{{ review_mode|yesno:'true,false' }}"
     data-auth="{{ user.is_authenticated|yesno:'true,false' }}">
 
-    <div class="game-head">
-        <div style="min-width:0">
-            <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
-                class="small muted">&larr; Back</a>
-            <h1 class="truncate" style="font-size:1.125rem;font-weight:600;margin-top:4px">
-                {% if word_list %}{{ word_list.name }}{% else %}All my words{% endif %}
-            </h1>
+    <header class="game-bar">
+        <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
+            class="icon-btn" aria-label="Exit game" title="Exit">
+            <svg class="icon" aria-hidden="true"><use href="#i-close"></use></svg>
+        </a>
+
+        <div class="game-title">
+            <p class="truncate">{% if word_list %}{{ word_list.name }}{% else %}All my words{% endif %}{% if review_mode %} · Review{% endif %}</p>
+            <p id="progress-text" class="tiny muted nums">0 / 0</p>
         </div>
 
-        <div class="mode-switch">
-            <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=classic"
-                class="{% if mode == 'classic' %}is-on{% endif %}">Classic</a>
-            <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=timer"
-                class="{% if mode == 'timer' %}is-on{% endif %}">Timer</a>
-        </div>
+        {# Timer mode is a toggle; it reloads the same deck in the other mode. #}
+        <a href="?{% if word_list %}list_id={{ word_list.id }}&amp;{% endif %}{% if review_mode %}review_mode=true&amp;{% endif %}mode={% if mode == 'timer' %}classic{% else %}timer{% endif %}"
+            class="icon-btn{% if mode == 'timer' %} is-on{% endif %}"
+            aria-label="Timer mode" aria-pressed="{% if mode == 'timer' %}true{% else %}false{% endif %}"
+            title="{% if mode == 'timer' %}Turn timer off{% else %}Turn timer on{% endif %}">
+            <svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg>
+        </a>
+    </header>
+
+    <div class="game-meters">
+        <div class="meter" role="progressbar" aria-label="Deck progress"><span id="progress-bar"></span></div>
+        {% if mode == 'timer' %}
+        <div class="meter meter-ink meter-timer" aria-hidden="true"><span id="timer-bar" style="width:100%"></span></div>
+        {% endif %}
     </div>
 
-    <div class="row" style="flex-wrap:nowrap;margin-bottom:16px">
-        <div class="meter" style="flex:1 1 auto">
-            <span id="progress-bar"></span>
-        </div>
-        <span id="progress-text" class="tiny muted nums" style="flex-shrink:0">0 / 0</span>
-    </div>
-
-    {% if mode == 'timer' %}
-    <div style="margin-bottom:16px">
-        <div class="row tiny muted" style="justify-content:space-between;margin-bottom:6px">
-            <span>Time left</span>
-            <span id="timer-text" class="nums">{{ seconds }}s</span>
-        </div>
-        <div class="meter meter-ink">
-            <span id="timer-bar" style="width:100%"></span>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if not user.is_authenticated %}
-    <p class="flash tiny" style="margin-bottom:16px">
-        Playing as a guest — progress stays in this browser.
-        <a href="{% url 'signup' %}" class="link">Sign up</a> to save it.
-    </p>
-    {% endif %}
-
-    <div class="score-row">
-        <span class="accent" style="font-weight:500">Known <span id="score-known" class="nums">0</span></span>
-        <span class="muted">To review <span id="score-unknown" class="nums">0</span></span>
-        <span id="streak-badge" class="badge badge-brand hidden">
-            <span id="streak-count" class="nums">0</span> day streak
+    <div class="game-stats" aria-live="polite">
+        <span class="stat-chip stat-known"><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg><span id="score-known" class="nums">0</span><span class="sr-only"> known</span></span>
+        <span class="stat-chip stat-review"><svg class="icon" aria-hidden="true"><use href="#i-undo"></use></svg><span id="score-unknown" class="nums">0</span><span class="sr-only"> to review</span></span>
+        {% if mode == 'timer' %}
+        <span class="stat-chip"><svg class="icon" aria-hidden="true"><use href="#i-timer"></use></svg><span id="timer-text" class="nums">{{ seconds }}s</span></span>
+        {% endif %}
+        <span id="streak-badge" class="stat-chip stat-streak hidden" title="Daily streak">
+            <svg class="icon" aria-hidden="true"><use href="#i-flame"></use></svg><span id="streak-count" class="nums">0</span><span class="sr-only"> day streak</span>
         </span>
     </div>
 
-    <div id="game-container">
-        <div id="card-stack" class="card-container hidden"></div>
+    <div class="game-board" id="game-container">
+        <div id="card-stack" class="card-container hidden" aria-live="polite"></div>
 
-        <div id="loading-screen" class="board-state">
-            <div class="loading-dot"></div>
-            <p class="small muted">Loading cards…</p>
+        <div id="loading-screen" class="board-state board-skeleton" aria-busy="true">
+            <span class="skeleton-line skeleton-word"></span>
+            <span class="skeleton-line"></span>
+            <span class="sr-only">Loading cards…</span>
         </div>
 
-        <div id="error-screen" class="board-state hidden">
-            <h2 class="section-title" style="margin-bottom:8px">Could not load the cards</h2>
-            <p class="small muted" style="margin-bottom:24px">Check your connection and try again.</p>
+        <div id="error-screen" class="board-state hidden" role="alert">
+            <h2 class="section-title">Could not load the cards</h2>
+            <p class="small muted">Check your connection and try again.</p>
             <button id="retry-btn" class="btn btn-primary">Try again</button>
         </div>
 
         <div id="empty-screen" class="board-state hidden">
-            <h2 class="section-title" style="margin-bottom:8px">No words here</h2>
-            <p class="small muted" style="margin-bottom:24px">Upload a list, join one with a code, or play a public
-                list.</p>
-            <div class="row" style="justify-content:center">
+            <h2 class="section-title">{% if review_mode %}Nothing to review{% else %}No words here{% endif %}</h2>
+            <p class="small muted">{% if review_mode %}Every word in this deck is scheduled for later. Come back
+                tomorrow.{% else %}Upload a list, join one with a code, or play a public list.{% endif %}</p>
+            <div class="board-actions">
                 <a href="{% url 'explore' %}" class="btn btn-primary">Explore lists</a>
                 {% if user.is_authenticated %}
                 <a href="{% url 'dashboard' %}" class="btn btn-outline">My lists</a>
@@ -85,27 +79,43 @@
         </div>
 
         <div id="completion-screen" class="board-state hidden">
-            <h2 class="section-title" style="margin-bottom:8px">Deck finished</h2>
-            <p id="completion-message" class="small muted" style="margin-bottom:24px"></p>
-            <div class="row" style="justify-content:center">
+            <p class="tiny muted caps">Deck finished</p>
+            <p id="completion-score" class="completion-score nums">0%</p>
+            <p id="completion-message" class="small muted"></p>
+            <div class="board-actions">
                 <button id="replay-btn" class="btn btn-primary">Play again</button>
+                {% if user.is_authenticated and word_list %}
+                <a id="review-link" href="{% url 'game' %}?list_id={{ word_list.id }}&amp;review_mode=true"
+                    class="btn btn-soft">Review missed words</a>
+                {% endif %}
                 <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
-                    class="btn btn-outline">
-                    {% if user.is_authenticated %}My lists{% else %}Explore more{% endif %}</a>
+                    class="btn btn-outline">{% if user.is_authenticated %}My lists{% else %}Explore more{% endif %}</a>
             </div>
+            {% if not user.is_authenticated %}
+            <p class="tiny muted">Progress is kept in this browser. <a href="{% url 'signup' %}" class="link">Sign up</a> to
+                save it everywhere.</p>
+            {% endif %}
         </div>
     </div>
 
-    <div class="answer-buttons">
-        <button id="btn-unknown" class="btn btn-outline">Don't know</button>
-        <button id="btn-known" class="btn btn-primary">Know it</button>
-    </div>
-
-    <p class="key-hints">
-        <span>&larr; Don't know</span>
-        <span>Know it &rarr;</span>
-        <span>Space — next card</span>
-    </p>
+    <footer class="game-controls" id="game-controls">
+        <div class="answer-buttons" id="answer-buttons">
+            <button id="btn-unknown" class="answer-btn answer-review" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#i-undo"></use></svg>Don't know
+            </button>
+            <button id="btn-known" class="answer-btn answer-know" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg>Know it
+            </button>
+        </div>
+        <button id="btn-next" class="answer-btn answer-next hidden" type="button">
+            Next card<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+        </button>
+        <p class="key-hints" aria-hidden="true">
+            <span><kbd>&larr;</kbd> Don't know</span>
+            <span><kbd>&rarr;</kbd> Know it</span>
+            <span><kbd>Space</kbd> Next</span>
+        </p>
+    </footer>
 </div>
 {% endblock %}
 
