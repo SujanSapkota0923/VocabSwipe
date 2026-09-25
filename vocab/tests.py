@@ -187,6 +187,58 @@ class CardApiTests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
+class InvalidIdTests(TestCase):
+    """Ids from the URL or the query string are user input: a bad one is a
+    missing list or a 400, never a server error."""
+
+    BAD_IDS = ('abc', '1.5', '-1', '99999999999999999999999')
+
+    def setUp(self):
+        self.user = User.objects.create_user('player', password='swordfish-42')
+        self.deck = make_list(owner=self.user)
+
+    def test_card_api_rejects_a_bad_list_id(self):
+        for bad in self.BAD_IDS:
+            with self.subTest(list_id=bad):
+                response = self.client.get(reverse('card_list_api'), {'list_id': bad})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()['status'], 'error')
+
+    def test_game_page_treats_a_bad_list_id_as_missing(self):
+        for bad in self.BAD_IDS:
+            with self.subTest(list_id=bad):
+                response = self.client.get(reverse('game'), {'list_id': bad})
+                self.assertRedirects(response, reverse('home'))
+
+    def test_oversized_ids_in_the_path_are_404(self):
+        self.client.force_login(self.user)
+        huge = '99999999999999999999999'
+        for url in (
+            f'/api/lists/{huge}/progress/',
+            f'/lists/{huge}/settings/',
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 404)
+        for url in (
+            f'/api/cards/{huge}/status/',
+            f'/lists/{huge}/visibility/',
+            f'/lists/{huge}/delete/',
+            f'/lists/{huge}/leave/',
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.post(url).status_code, 404)
+
+    def test_the_largest_valid_id_is_just_not_found(self):
+        response = self.client.get('/api/lists/999999999999999999/progress/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_valid_ids_still_resolve(self):
+        response = self.client.get(reverse('card_list_api'), {'list_id': self.deck.id})
+        self.assertEqual(len(response.json()), 3)
+        response = self.client.get(reverse('word_list_progress_api', args=[self.deck.id]))
+        self.assertEqual(response.status_code, 200)
+
+
 class UploadTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('uploader', password='swordfish-42')

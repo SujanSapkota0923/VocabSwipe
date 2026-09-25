@@ -5,6 +5,9 @@ Django's session cookie. POST requests need the CSRF token (`X-CSRFToken`
 header for JSON, `csrfmiddlewaretoken` field for forms). There is no
 versioning, pagination or rate limiting.
 
+Path ids (`<id>`) use a custom converter: 1–18 digits, no leading zero.
+Anything else, including ids too large for the database, is a 404.
+
 ## JSON endpoints
 
 ### `GET /api/cards/`
@@ -13,7 +16,7 @@ Cards to play. Open to guests.
 
 | Query | Meaning |
 | --- | --- |
-| `list_id` | One list. Must be playable by the caller (`can_play`), otherwise the result is empty. Non-numeric values currently cause a 500. |
+| `list_id` | One list. Must be playable by the caller (`can_play`), otherwise the result is empty. A value that is not a positive integer returns `400 {"status":"error","message":"Invalid list_id"}`. |
 | `review_mode=true` | Signed-in only: drop known words whose `next_review_date` is in the future. |
 
 Without `list_id`: every list the user owns or joined; for a guest, lists

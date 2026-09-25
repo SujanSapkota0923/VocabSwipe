@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 GAME_MODES = ('classic', 'timer')
 SESSION_UNLOCKED = 'unlocked_codes'
+MAX_ID = 2 ** 63 - 1
+
+
+def parse_id(value):
+    """A query-string id as an int, or None when it cannot be a row id."""
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if 0 < number <= MAX_ID else None
 
 
 # ---------------------------------------------------------------- access
@@ -309,7 +319,8 @@ def game_view(request):
     list_id = request.GET.get('list_id')
     word_list = None
     if list_id:
-        word_list = WordList.objects.filter(id=list_id).select_related('owner').first()
+        # An id that is not a number is treated like a list that does not exist.
+        word_list = WordList.objects.filter(id=parse_id(list_id)).select_related('owner').first()
         if not can_play(request, word_list):
             messages.error(request, 'That list is private. Ask its owner for the share code.')
             return redirect('home')
@@ -352,6 +363,9 @@ def list_word_lists_api(request):
 
 def card_list_api(request):
     list_id = request.GET.get('list_id')
+    if list_id and parse_id(list_id) is None:
+        return JsonResponse({'status': 'error', 'message': 'Invalid list_id'}, status=400)
+    list_id = parse_id(list_id)
     review_mode = request.GET.get('review_mode') == 'true'
 
     lists = playable_lists(request, list_id)

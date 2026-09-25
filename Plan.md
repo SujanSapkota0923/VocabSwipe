@@ -4,7 +4,7 @@ Persistent project state: what VocabSwipe is, what has been verified, what is
 next. Read this before starting work. `claude.md` holds the full roadmap brief
 this plan is derived from; the detailed references live in `docs/`.
 
-Last updated: 2026-09-25 (repository audit).
+Last updated: 2026-09-25 (FIX-002).
 
 ## Project Overview
 
@@ -155,7 +155,7 @@ timer-mode JS. No JS tests.
 
 Confirmed during the audit:
 
-1. `GET /game/?list_id=abc` and `GET /api/cards/?list_id=abc` return **500** (unvalidated ID; an oversized integer also 500s with `OverflowError`).
+1. ~~Invalid or oversized ids return 500~~ — fixed in FIX-002.
 2. Django 4.2 is past end of support (April 2026). No more security releases.
 3. No rate limiting anywhere: login, signup, share-code guessing (`/game/?code=`, join forms), uploads, card status POSTs.
 4. `/api/cards/` returns every playable card in one response, `order_by('?')`, no limit. "Play all" across big lists sends thousands of rows.
@@ -168,6 +168,8 @@ Confirmed during the audit:
 11. `AUTO_SPLIT_FEATURE.md` and `RATE_LIMIT_FIX.md` describe behaviour the code no longer has (50-word split, 1.5 s delay). `PDF_CONVERSION_GUIDE.md` and the root scripts hard-code `/Users/sujan/...` paths.
 12. `test_api.py` in the repo root matches the test discovery pattern and makes live network calls at import.
 13. `claude.md` (lowercase) asks for a `CLAUDE.md`; both names in one repo collide on macOS/Windows checkouts (see Important Decisions).
+14. `config/settings.py` now falls back to `SECRET_KEY = 'this-is-for-testing-purpose'` when `DJANGO_SECRET_KEY` is unset (commit `95f904e`). That disables the startup guard: a deploy missing the variable runs with a public key instead of failing. Render sets the variable, so production is probably unaffected, but the guard is gone.
+15. Commit `bb89564` renamed `.env.example` to `.env`, so a `.env` file is now tracked in git. Its contents were not inspected (reading credential files is blocked in this environment). If it holds a real key, that key must be rotated.
 
 ## Technical Debt
 
@@ -187,11 +189,16 @@ describe what already exists so it is reused, not rebuilt.
 
 ### Phase 0 — Audit follow-ups (fix before new features)
 
-- [ ] FIX-001 — Commit the current working tree as the audited baseline (needs the owner's go-ahead)
-- [ ] FIX-002 — Validate `list_id` / IDs in `game_view` and `card_list_api`; return 404/400, not 500, with tests
+- [x] FIX-001 — Commit the current working tree as the audited baseline
+  - Completed: 2026-09-25 — committed by the owner (`5c0d780`); working tree clean.
+- [x] FIX-002 — Validate ids; 404/400 instead of 500
+  - Completed: 2026-09-25
+  - Result: `id` path converter in `vocab/urls.py` (1–18 digits, no leading zero) replaces `<int:>` on every route, so oversized path ids 404. `parse_id()` in `vocab/views.py` validates `?list_id=`: `/api/cards/` returns 400 JSON, `/game/` treats it as a missing list. 5 tests in `InvalidIdTests`; suite 48/48.
 - [ ] FIX-003 — Upgrade Django 4.2 → 5.2 LTS; rebuild the venv from `requirements.txt`; run tests and `check --deploy`
 - [ ] FIX-004 — Retire or correct stale root docs; move `test_api.py` out of test discovery
 - [ ] FIX-005 — Decide on `claude.md` vs `CLAUDE.md` (see Important Decisions)
+- [ ] FIX-006 — Restore the fail-fast `SECRET_KEY` guard (Known Issue 14); needs the owner's agreement since the fallback was added on purpose
+- [ ] FIX-007 — Owner checks the tracked `.env` (Known Issue 15): if it has real values, rotate them, `git rm --cached .env`, restore `.env.example`, add `.env` to `.gitignore`
 
 ### Phase 1 — Audit & Architecture
 
@@ -260,10 +267,11 @@ describe what already exists so it is reused, not rebuilt.
 ## Completed Tasks
 
 - 2026-09-25 — TASK-001 to TASK-005 (audit, inventory, architecture, database review, security audit).
+- 2026-09-25 — FIX-001 (baseline committed), FIX-002 (id validation).
 
 ## In Progress
 
-Nothing. The audit changed documentation only; no application code was touched.
+Nothing.
 
 ## Pending Tasks
 
@@ -271,14 +279,12 @@ Everything unchecked above, Phase 0 first.
 
 ## Next Recommended Task
 
-**FIX-001**, then **FIX-002**.
+**FIX-006 / FIX-007** (owner decisions, security), then **FIX-003** (Django 5.2 LTS).
 
-FIX-001 needs the owner's decision: the audited state includes 17 uncommitted
-modified files and several new ones, so a commit gives every later change a
-clean diff. FIX-002 is the smallest confirmed correctness bug (public 500s).
-After Phase 0, continue with TASK-021/TASK-024 (rate limiting) before the
-Phase 2 feature work, because correctness and security rank above new
-features.
+FIX-006 and FIX-007 are small but need the owner: one reverts a deliberate
+change, the other needs someone allowed to read the tracked env file. If they
+are deferred, FIX-003 is next: Django 4.2 gets no more security releases.
+After Phase 0, TASK-021/TASK-024 (rate limiting) come before Phase 2 features.
 
 ## Important Decisions
 

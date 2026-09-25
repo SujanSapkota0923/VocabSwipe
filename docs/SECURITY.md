@@ -1,12 +1,11 @@
 # Security
 
-Audit of the working tree on 2026-09-25. Findings are recorded here; none have
-been fixed yet. Severity is a judgement for this app's exposure (public site,
+Audit of the working tree on 2026-09-25. Fixed findings are marked. Severity is a judgement for this app's exposure (public site,
 user accounts, no payment or personal data beyond usernames).
 
 ## What is in place
 
-- **Secrets:** `DJANGO_SECRET_KEY` from the environment; the app refuses to start without it when `DEBUG` is off. The development fallback key is used only with `DJANGO_DEBUG=1`. No secrets found in tracked files; `.env.example` holds placeholders only. `db.sqlite3` is git-ignored and not tracked.
+- **Secrets:** `DJANGO_SECRET_KEY` from the environment. The fail-fast guard for a missing key is currently bypassed (S15). No secrets found in tracked source files; a tracked `.env` is unverified (S16). `db.sqlite3` is git-ignored and not tracked.
 - **Debug:** off unless `DJANGO_DEBUG` is set.
 - **Hosts / CSRF:** `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` from the environment, defaulting to the production domain.
 - **HTTPS (DEBUG off):** `SECURE_PROXY_SSL_HEADER`, optional `SECURE_SSL_REDIRECT`, secure session and CSRF cookies, HSTS 1 year with subdomains and preload, `nosniff`, `X_FRAME_OPTIONS = 'DENY'`. `manage.py check --deploy` passes with no warnings.
@@ -25,7 +24,7 @@ user accounts, no payment or personal data beyond usernames).
 | S1 | High | Django 4.2 left extended support in April 2026; no further security fixes. The local environment also runs 4.2.0, not the pinned 4.2.30. | `requirements.txt` |
 | S2 | Medium | No rate limiting on login, signup or admin login: password guessing is unthrottled. | `vocab/urls.py`, `/admin/` |
 | S3 | Medium | Share codes can be brute-forced: `/game/?code=` and both join forms accept unlimited guesses. Space is 32⁶ ≈ 1.07 × 10⁹, so this is slow but unbounded, and a hit unlocks a private list. | `game_view`, `home_view`, `dashboard_view` |
-| S4 | Medium | Invalid `list_id` raises `ValueError` / `OverflowError` → 500. Not an information leak with `DEBUG` off, but it is an unhandled input path and noise in the error log. | `game_view`, `playable_lists` |
+| S4 | Fixed | **Fixed 2026-09-25 (FIX-002).** Invalid `list_id` raises `ValueError` / `OverflowError` → 500. Not an information leak with `DEBUG` off, but it is an unhandled input path and noise in the error log. | `game_view`, `playable_lists` |
 | S5 | Medium | `/api/cards/` has no pagination or limit and uses `ORDER BY RANDOM()`; a signed-in user with many large lists can make every request expensive. | `card_list_api` |
 | S6 | Medium | XLSX is a zip: a 5 MB upload can expand far beyond that when openpyxl reads shared strings. Parsing runs synchronously inside the request with no time or memory bound. | `parsing._parse_sheet` |
 | S7 | Low | Card status POSTs are unthrottled; any client can inflate `total_reviews` and streak for its own account. Affects only the caller's data. | `update_card_status_api` |
@@ -35,6 +34,8 @@ user accounts, no payment or personal data beyond usernames).
 | S11 | Low | No password reset. Not a vulnerability, but a user who forgets a password loses their progress; any future reset flow must avoid account enumeration. | — |
 | S12 | Info | `SECURE_HSTS_PRELOAD = True` is hard-coded. Submitting the domain to the preload list is hard to undo; keep it only if that is intended. | `config/settings.py` |
 | S13 | Info | Admin is at the default `/admin/`. Fine with strong passwords and S2 fixed. | `config/urls.py` |
+| S15 | High | `SECRET_KEY` falls back to a hard-coded public string when `DJANGO_SECRET_KEY` is unset (commit `95f904e`), bypassing the fail-fast guard. Anyone who knows the string can forge sessions on a deploy that forgot the variable. | `config/settings.py` |
+| S16 | Unverified | `.env` tracked in git since commit `bb89564` (renamed from `.env.example`). Contents not inspected. If it holds a real key, rotate it and remove the file from the index; history keeps the old value. | `.env` |
 | S14 | Info | Signup reveals whether a username exists (standard Django behaviour). Acceptable for a username-only app; note it for TASK-021. | `SignupForm` |
 
 ## Not applicable today
@@ -45,8 +46,8 @@ user accounts, no payment or personal data beyond usernames).
 
 ## Recommended order
 
-1. S1 (FIX-003) — dependency upgrade.
-2. S4 (FIX-002) — input validation, with tests.
+1. S15, S16 (FIX-006, FIX-007) — secret handling.
+2. S1 (FIX-003) — dependency upgrade.
 3. S2, S3, S7, S8 — one small rate-limit mechanism (Django cache based) applied to login, code lookups, uploads and status POSTs.
 4. S5 — cap or paginate the card API.
 5. S6 — cap rows/cells read from sheets and consider moving parsing out of the request.
