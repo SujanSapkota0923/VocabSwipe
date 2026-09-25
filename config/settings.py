@@ -32,7 +32,7 @@ def env_list(name, default=''):
 # Debug is off unless it is asked for. Local development: DJANGO_DEBUG=1
 DEBUG = env_flag('DJANGO_DEBUG', False)
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'this-is-for-testing-purpose')
 if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = 'django-insecure-local-development-only'
