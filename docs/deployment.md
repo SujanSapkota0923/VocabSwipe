@@ -1,7 +1,33 @@
 # Deployment
 
 Current target: a Render web service described by `render.yaml`, served at
-`vocab.sujansapkota07.com.np`. The same two scripts work on any Linux host.
+`vocab.sujansapkota07.com.np` (through Cloudflare) and at Render's own
+`*.onrender.com` hostname. The same two scripts work on any Linux host.
+Owned by the `deployer` agent.
+
+Last verified live: 2026-09-25 — `/explore/` returned 200 on both hostnames
+and served the UI-001 markup.
+
+## Local development
+
+```bash
+pip install -r requirements.txt
+export DJANGO_DEBUG=1              # any host allowed, insecure dev key, http
+python manage.py migrate           # also creates the public starter deck
+python manage.py runserver         # or 0.0.0.0:8000 to open it from a phone
+```
+
+## Docker
+
+Not used. There is no Dockerfile or `docker-compose.yml`, and Render builds
+the app natively from `requirements.txt`.
+
+## Deploying
+
+1. Tests, migration check, `check --deploy` and a production `collectstatic` pass locally (see the end of this file).
+2. The owner approves.
+3. Push to `main`. Render runs `build.sh`, then `start.sh`.
+4. Verify: `curl -I https://www.vocab.sujansapkota07.com.np/explore/` and the `onrender.com` URL return 200; open a game page and check that cards load.
 
 ## Process
 
@@ -42,7 +68,7 @@ returns 500 with `ValueError: Missing staticfiles manifest entry for
 Render's own `*.onrender.com` name is added to `ALLOWED_HOSTS` automatically
 from `RENDER_EXTERNAL_HOSTNAME`; before that it answered 400.
 
-All variables are listed in `Plan.md` → Environment Variables and `.env.example`.
+All variables are listed in `CLAUDE.md` → Environment variables.
 
 ## Data
 
@@ -76,6 +102,31 @@ All three passed on 2026-09-25.
 
 ## Open items
 
-Tracked in `Plan.md`: Django upgrade (FIX-003), PostgreSQL decision and a
+Tracked in `tasks/backlog.md`: Django upgrade (FIX-003), PostgreSQL decision and a
 dedicated health endpoint (TASK-030), backups, and whether HSTS preload is
 intended.
+
+## Rollback
+
+- Code: redeploy the previous successful deploy from the Render dashboard, or `git revert <commit>` and push. Not yet exercised on this service.
+- Migrations: all current migrations are additive or insert data; `0009` has a reverse that deletes the starter deck. Before any migration that drops or rewrites data, back up the database (below), because rolling the code back does not roll the data back.
+
+## Backups
+
+None are configured. The database is one SQLite file on the Render disk. A
+manual copy, from a Render shell:
+
+```bash
+python -c "import sqlite3,datetime as d; s=sqlite3.connect('/var/lib/vocabswipe/db.sqlite3'); t=sqlite3.connect(f'/var/lib/vocabswipe/backup-{d.date.today()}.sqlite3'); s.backup(t); t.close()"
+```
+
+(Python's `sqlite3` module is used because the `sqlite3` command-line tool may
+not be installed on the Render image.)
+
+Download it off the disk; a backup on the same disk does not survive losing the disk.
+
+## Monitoring
+
+Not yet documented beyond Render's health check on `/explore/` and the
+stdout logs in the Render dashboard. No error tracking or uptime alerts are
+configured.

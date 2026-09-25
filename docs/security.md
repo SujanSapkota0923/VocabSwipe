@@ -1,6 +1,6 @@
 # Security
 
-Audit of the working tree on 2026-09-25. Fixed findings are marked. Severity is a judgement for this app's exposure (public site,
+Owned by the `security` agent. Audit of the working tree on 2026-09-25. Fixed findings are marked. Severity is a judgement for this app's exposure (public site,
 user accounts, no payment or personal data beyond usernames).
 
 ## What is in place
@@ -36,7 +36,17 @@ user accounts, no payment or personal data beyond usernames).
 | S13 | Info | Admin is at the default `/admin/`. Fine with strong passwords and S2 fixed. | `config/urls.py` |
 | S15 | High | `SECRET_KEY` falls back to a hard-coded public string when `DJANGO_SECRET_KEY` is unset (commit `95f904e`), bypassing the fail-fast guard. Anyone who knows the string can forge sessions on a deploy that forgot the variable. | `config/settings.py` |
 | S16 | Unverified | `.env` tracked in git since commit `bb89564` (renamed from `.env.example`). Contents not inspected. If it holds a real key, rotate it and remove the file from the index; history keeps the old value. | `.env` |
+| S17 | Info | No Content-Security-Policy header. Templates use one inline `onsubmit` handler (delete confirmation) and inline `style` attributes, so a future CSP needs `'unsafe-inline'` or those moved into `static/`. | `templates/dashboard.html` |
 | S14 | Info | Signup reveals whether a username exists (standard Django behaviour). Acceptable for a username-only app; note it for TASK-021. | `SignupForm` |
+
+## Change reviews
+
+| Date | Change | Result |
+| --- | --- | --- |
+| 2026-09-25 | FIX-002 id validation | Removes a 500 path (S4 fixed). No new surface. |
+| 2026-09-25 | FIX-008 deployment fix (`collectstatic` at start, `RENDER_EXTERNAL_HOSTNAME` appended to `ALLOWED_HOSTS`) | No findings. The appended host comes from Render's own environment, not from requests. |
+| 2026-09-25 | Debug-only `ALLOWED_HOSTS = ['*']` | No findings for production: the wildcard only applies when `DJANGO_DEBUG` is on. Never run a public server with debug on. |
+| 2026-09-25 | UI-001 (templates, CSS, `game.js`, `dashboard.js`; commit `b2e7426`) | No findings. No new endpoints, forms, `|safe`, or HTML built from data: card text is set with `textContent`/`setAttribute`, template values are autoescaped, every POST form keeps `{% csrf_token %}`, the status POST still sends `X-CSRFToken`, and no new third-party resources are loaded. S17 noted. |
 
 ## Not applicable today
 

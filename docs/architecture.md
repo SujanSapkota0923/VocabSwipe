@@ -1,7 +1,30 @@
 # Architecture
 
-Describes the code as it is on 2026-09-25 (working tree, including
-uncommitted changes). Planned work is in `Plan.md`, not here.
+Describes the code as it is on 2026-09-25. Planned work lives in
+`tasks/backlog.md`, not here. Owned by the `architect` agent; update it when
+the system changes and add a dated entry under Decisions.
+
+## System overview
+
+```mermaid
+flowchart TD
+    User[Browser: phone or desktop] -->|HTTPS| CF[Cloudflare]
+    CF --> Render[Render web service]
+    Render --> Gunicorn[Gunicorn, 3 workers<br/>start.sh]
+    Gunicorn --> Django[Django 4.2<br/>config/ + vocab/]
+    Django -->|ORM| SQLite[(SQLite, WAL<br/>Render disk)]
+    Django -->|daemon thread| Lookup[vocab/tasks.py<br/>meaning lookup]
+    Lookup -->|HTTPS| Dict[dictionaryapi.dev]
+    Lookup -->|ORM| SQLite
+    Django -->|WhiteNoise| Static[static/ via staticfiles manifest]
+```
+
+- **Backend:** one Django project (`config/`) with one app (`vocab/`): function views, Django forms, ORM models, JSON endpoints returning `JsonResponse`, management commands.
+- **Frontend:** server-rendered templates (`templates/`, all extending `base.html`), one stylesheet (`static/css/app.css`, design tokens in `:root`), two scripts: `game.js` (card stack, swipe, timer, answers) and `dashboard.js` (upload picker, lookup polling, list menus, copy code). Icons are an inline SVG sprite in `base.html`. No framework, bundler or CDN.
+- **Layout modes:** normal pages get a sticky top bar, a fixed bottom tab bar under 768 px and a footer from 768 px. `game.html` empties the header, tab bar and footer blocks and sets `body.is-game`, which makes the game a full-viewport (`100dvh`) view.
+- **Authentication:** Django sessions; `LoginView`, `LogoutView` (POST) and a signup view. Guests get `session['unlocked_codes']` and browser `localStorage` for progress.
+- **External service:** dictionaryapi.dev, called only from the background lookup.
+- **Infrastructure:** see `docs/deployment.md`. No Docker, no CI.
 
 ## Request flow
 
@@ -149,7 +172,7 @@ lists, processing fields, SM-2 fields, `UserStats`, `0009` starter deck (data).
 
 ### Technical debt, security and performance
 
-See `Plan.md` → Known Issues / Technical Debt and `docs/SECURITY.md`.
+See `tasks/backlog.md` → Technical debt and `docs/security.md`.
 
 ## Where things live
 
@@ -169,3 +192,11 @@ See `Plan.md` → Known Issues / Technical Debt and `docs/SECURITY.md`.
 | Styles | `static/css/app.css` |
 | Tests | `vocab/tests.py` |
 | Deployment | `build.sh`, `start.sh`, `render.yaml`, `Procfile`, `.env.example` |
+
+## Decisions
+
+- 2026-09-25 — SQLite stays. The roadmap mentions PostgreSQL; switching is a TASK-030 decision with a data migration plan, not something to do in passing.
+- 2026-09-25 — Background lookups stay an in-process thread until evidence shows it fails (no queue or broker).
+- 2026-09-25 — No `backend/` / `frontend/` split and no Docker: the app is one Django project with templates, deployed natively on Render.
+- 2026-09-25 — The game is a separate full-screen layout mode of `base.html` (empty header/tab bar/footer blocks) rather than a separate base template, so the icon sprite and CSS stay shared.
+- 2026-09-25 — Answer semantics: right swipe / → / "Know it" = known (SM-2 quality 4); left swipe / ← / "Don't know" = review (quality 0). The meaning is shown after the answer.

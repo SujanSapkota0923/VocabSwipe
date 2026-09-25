@@ -99,6 +99,6 @@ delete) for non-owners.
 
 ## Known gaps
 
-Tracked in `Plan.md` (TASK-013, TASK-024): input validation for IDs, uniform
+Tracked in `tasks/backlog.md` (TASK-013, TASK-024): input validation for IDs, uniform
 error format across endpoints, pagination for `/api/cards/`, rate limits, and
 the N+1 count in `/api/lists/`.

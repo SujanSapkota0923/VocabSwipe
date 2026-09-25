@@ -1,3 +1,7 @@
+> Owner's long-term development brief (formerly `claude.md` in the repository root).
+> Where it says `CLAUDE.md`, read `CLAUDE.md` together with `tasks/`; the docs it names
+> are the lowercase files in `docs/` (`architecture.md`, `security.md`, `api.md`, `deployment.md`).
+
 # VocabSwipe — Claude Code Master Development Prompt
 
 ## Role

@@ -47,37 +47,25 @@ python manage.py runserver
 
 Then open http://127.0.0.1:8000. The starter deck is playable straight away.
 
-Run the tests with:
+To open it from a phone on the same network, run
+`python manage.py runserver 0.0.0.0:8000` and browse to the machine's IP.
+
+## Tests
 
 ```bash
 DJANGO_DEBUG=1 python manage.py test
 ```
 
+UI changes are also checked in a headless browser at phone, tablet and desktop
+sizes: see `tests/ui/README.md`.
+
 ## Deploying
 
-`build.sh` installs dependencies and collects static files. `start.sh` runs
-migrations and starts gunicorn; it is the process to run, not gunicorn
-directly. `render.yaml` describes the whole service for Render, and the same
-two commands work on any host.
-
-Environment variables (see `.env.example`):
-
-| Variable | Needed | Notes |
-| --- | --- | --- |
-| `DJANGO_SECRET_KEY` | yes | The app refuses to start without it when `DEBUG` is off |
-| `DJANGO_DEBUG` | yes | `0` in production |
-| `DJANGO_DB_PATH` | yes | Point at a persistent disk, e.g. `/var/lib/vocabswipe/db.sqlite3`, or every deploy wipes the uploaded lists |
-| `DJANGO_ALLOWED_HOSTS` | yes | Comma separated |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | yes | Comma separated, with scheme |
-| `DJANGO_SECURE_SSL_REDIRECT` | no | `0` when Cloudflare or a proxy already forces HTTPS |
-
-Two things are worth knowing:
-
-- Static files are served by WhiteNoise from `STATIC_ROOT`. If `collectstatic`
-  does not run during the build, `game.js` 404s and the game shows no cards.
-  `build.sh` runs it.
-- SQLite is kept on a mounted disk. Without one, a deploy replaces the code
-  directory and every uploaded word list disappears.
+Render runs `build.sh` (install, `collectstatic`) and then `start.sh`
+(migrate, `collectstatic`, resume lookups, Gunicorn); `render.yaml` describes
+the service and pushes to `main` deploy it. SQLite lives on a mounted disk.
+There is no Docker setup. Environment variables, rollback and backups are in
+`docs/deployment.md`.
 
 ## Management commands
 
@@ -87,30 +75,26 @@ python manage.py fetch_meanings --list-id 4  # just one list
 python manage.py resume_lookups              # requeue lookups a restart interrupted
 ```
 
-`start.sh` runs `resume_lookups` at boot. The dashboard also restarts a
-waiting lookup when its owner opens the page.
-
 ## Layout
+
+One Django project with server-rendered templates:
 
 ```
 config/          settings, urls, wsgi
 vocab/           the app: models, views, forms, tasks, tests
-  utils/         file parsing and the dictionary API client
-  management/    fetch_meanings, resume_lookups
 templates/       pages, all extending base.html
-static/css/      one hand written stylesheet, no framework
-static/js/       game.js (the card stack) and dashboard.js (upload, polling)
-docs/            architecture, API, security, deployment, roadmap
+static/          app.css, game.js (card stack), dashboard.js
+tests/ui/        headless-browser viewport check
+docs/            requirements, architecture, API, security, deployment, roadmap
+tasks/           backlog, active, completed
 wordlists/       ready-to-upload word files
 scripts/         offline helpers: PDF to word list, file splitter
+.claude/         agent definitions and skills for the development workflow
 ```
 
-## Documentation
+## How work is organized
 
-- `Plan.md` — project state, known issues, task roadmap, next task
-- `docs/ARCHITECTURE.md` — request flow, import pipeline, models, feature inventory
-- `docs/API.md` — JSON and form endpoints
-- `docs/SECURITY.md` — security audit and open findings
-- `docs/DEPLOYMENT.md` — build, start, Render, data and logs
-- `docs/ROADMAP.md` — the long-term development brief the plan is based on
-- `wordlists/README.md`, `scripts/README.md` — sample word files and offline helpers
+- `CLAUDE.md` is the control document: stack, commands, rules, and what needs the owner's approval.
+- `tasks/active.md` holds what is being worked on now, `tasks/backlog.md` what is next, `tasks/completed.md` what is done and how it was verified.
+- `docs/` is the shared knowledge base; `docs/test-reports/` holds test reports.
+- Work moves through specialised agents in `.claude/agents/`: **planner** (turns a request into tasks with acceptance criteria), **architect** (fits the change into the existing design), **developer** (implements it), **tester** (verifies it, including mobile viewports), **security** (reviews it), **deployer** (checks and, after approval, ships it). Small changes skip stages; database, security and production changes use all of them. Each agent hands off through files in the repository, and pushing to `main` (a deploy) always waits for the owner.
