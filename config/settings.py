@@ -45,6 +45,10 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list(
     'DJANGO_ALLOWED_HOSTS',
+    # Development answers on any host, so a phone or another machine on the
+    # network can reach `runserver 0.0.0.0:8000` by IP. Production keeps the
+    # explicit list.
+    '*' if DEBUG else
     'vocab.sujansapkota07.com.np,www.vocab.sujansapkota07.com.np,localhost,127.0.0.1',
 )
 

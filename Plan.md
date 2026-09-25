@@ -137,7 +137,7 @@ virtualenv built from `requirements.txt`.
 | --- | --- | --- |
 | `DJANGO_DEBUG` | off | `1` for local development |
 | `DJANGO_SECRET_KEY` | none | Required when debug is off; startup fails without it |
-| `DJANGO_ALLOWED_HOSTS` | production domain + localhost | Comma separated |
+| `DJANGO_ALLOWED_HOSTS` | `*` when debug is on; production domain + localhost otherwise | Comma separated |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | production domain (https) | Comma separated, with scheme |
 | `DJANGO_DB_PATH` | `BASE_DIR/db.sqlite3` | Must point at the persistent disk in production |
 | `DJANGO_SECURE_SSL_REDIRECT` | on | `0` when a proxy already forces HTTPS (Render config uses `0`) |
