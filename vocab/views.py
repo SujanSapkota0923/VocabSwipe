@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -10,8 +11,10 @@ from django.utils import timezone
 
 from .forms import JoinCodeForm, ListSettingsForm, SignupForm, UploadFileForm
 from .models import JoinedList, UserStats, Vocabulary, WordList, WordProgress
-from .tasks import start_background_processing
-from .utils.parsing import parse_vocabulary_file
+from .tasks import resume_pending_lookups, start_background_processing
+from .utils.parsing import ParseError, parse_vocabulary_file
+
+logger = logging.getLogger(__name__)
 
 GAME_MODES = ('classic', 'timer')
 SESSION_UNLOCKED = 'unlocked_codes'
@@ -157,9 +160,13 @@ def dashboard_view(request):
                 uploaded = request.FILES['file']
                 try:
                     parsed_result = parse_vocabulary_file(uploaded)
-                except Exception as exc:
+                except ParseError as exc:
                     parsed_result = None
-                    upload_form.add_error('file', f'Error parsing file: {exc}')
+                    upload_form.add_error('file', str(exc))
+                except Exception:
+                    logger.exception('Upload could not be parsed: %s', uploaded.name)
+                    parsed_result = None
+                    upload_form.add_error('file', 'That file could not be read. Check the format and try again.')
 
                 parsed_data = (parsed_result or {}).get('data')
                 needs_api_fetch = (parsed_result or {}).get('needs_api_fetch', False)
@@ -216,7 +223,11 @@ def dashboard_view(request):
             })
         return out
 
-    my_lists = decorate(WordList.objects.filter(owner=request.user))
+    own_lists = list(WordList.objects.filter(owner=request.user))
+    # A lookup that a restart interrupted starts again here.
+    resume_pending_lookups(own_lists)
+
+    my_lists = decorate(own_lists)
     joined = decorate(WordList.objects.filter(joined_by__user=request.user).select_related('owner'))
 
     total_words = Vocabulary.objects.filter(word_list__in=accessible_lists(request.user)).count()

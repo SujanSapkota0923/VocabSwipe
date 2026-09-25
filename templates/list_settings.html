@@ -2,36 +2,33 @@
 {% block title %}Edit {{ word_list.name }} · VocabSwipe{% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto px-4 py-10 md:py-14">
-    <a href="{% url 'dashboard' %}" class="text-sm text-mute hover:text-ink transition-colors">&larr; Back to my lists</a>
-    <h1 class="text-2xl font-bold tracking-tight mt-3 mb-1">List settings</h1>
-    <p class="text-sm text-mute mb-7">Share code
-        <code class="bg-paper border border-line rounded px-2 py-0.5 font-semibold tracking-[0.2em] text-xs">{{ word_list.share_code }}</code>
-        · {{ word_list.word_count }} words
+<div class="wrap wrap-narrow page">
+    <a href="{% url 'dashboard' %}" class="small muted">&larr; Back to my lists</a>
+    <h1 class="title" style="margin:12px 0 4px">List settings</h1>
+    <p class="small muted" style="margin-bottom:28px">
+        Share code <code class="code-chip">{{ word_list.share_code }}</code> · {{ word_list.word_count }} words
     </p>
 
-    <form method="post" class="rounded-xl border border-line p-6 space-y-5">
+    <form method="post" class="card card-pad stack">
         {% csrf_token %}
-        <div>
-            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium mb-2">Name</label>
+        <div class="field">
+            <label for="{{ form.name.id_for_label }}">Name</label>
             {{ form.name }}
-            {% for error in form.name.errors %}<p class="text-xs text-brand-600 mt-2">{{ error }}</p>{% endfor %}
+            {% for error in form.name.errors %}<p class="error">{{ error }}</p>{% endfor %}
         </div>
-        <div>
-            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium mb-2">Description</label>
+        <div class="field">
+            <label for="{{ form.description.id_for_label }}">Description</label>
             {{ form.description }}
-            {% for error in form.description.errors %}<p class="text-xs text-brand-600 mt-2">{{ error }}</p>{% endfor %}
+            {% for error in form.description.errors %}<p class="error">{{ error }}</p>{% endfor %}
         </div>
-        <label class="flex items-start gap-2 text-sm cursor-pointer">
+        <label class="checkbox">
             {{ form.is_public }}
             <span>
-                <span class="font-medium">Public list</span>
-                <span class="block text-xs text-mute">Anyone can find and play it without an account.</span>
+                <span style="font-weight:500">Public list</span>
+                <span class="tiny muted" style="display:block">Anyone can find and play it without an account.</span>
             </span>
         </label>
-        <button type="submit"
-            class="w-full py-3 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Save
-            changes</button>
+        <button type="submit" class="btn btn-primary btn-block">Save changes</button>
     </form>
 </div>
 {% endblock %}

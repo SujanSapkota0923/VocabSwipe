@@ -247,20 +247,19 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const word = document.createElement('h2');
-        word.className = 'text-3xl md:text-4xl font-bold tracking-tight text-center break-words w-full px-2';
+        word.className = 'card-word';
         word.textContent = data.word;
         front.appendChild(word);
 
         const hint = document.createElement('p');
-        hint.className = 'absolute bottom-6 text-xs text-mute uppercase tracking-widest';
+        hint.className = 'card-hint';
         hint.textContent = 'Swipe to reveal';
         front.appendChild(hint);
 
         if (data.audio_url) {
             const audioBtn = document.createElement('button');
             audioBtn.type = 'button';
-            audioBtn.className =
-                'audio-btn absolute top-4 right-4 w-9 h-9 rounded-full border border-line text-mute hover:text-brand-600 hover:border-brand-300 transition-colors';
+            audioBtn.className = 'audio-btn';
             audioBtn.setAttribute('aria-label', `Play pronunciation of ${data.word}`);
             audioBtn.textContent = '♪';
             audioBtn.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -281,23 +280,23 @@ document.addEventListener('DOMContentLoaded', () => {
             : ['No meaning saved for this word.'];
 
         const backWord = document.createElement('p');
-        backWord.className = 'text-xs uppercase tracking-widest text-mute mb-3';
+        backWord.className = 'card-back-word';
         backWord.textContent = data.word;
         back.appendChild(backWord);
 
         const meaningWrap = document.createElement('div');
-        meaningWrap.className = 'w-full space-y-3';
+        meaningWrap.className = 'meaning-list';
         meanings.forEach((meaning, index) => {
             const row = document.createElement('div');
-            row.className = 'pb-3 border-b border-line last:border-0 w-full text-center';
+            row.className = 'meaning';
             if (meanings.length > 1) {
                 const label = document.createElement('span');
-                label.className = 'block text-[11px] font-medium text-brand-500 mb-1';
+                label.className = 'meaning-label';
                 label.textContent = `Meaning ${index + 1}`;
                 row.appendChild(label);
             }
             const text = document.createElement('p');
-            text.className = 'text-base leading-relaxed';
+            text.className = '';
             text.textContent = meaning;
             row.appendChild(text);
             meaningWrap.appendChild(row);
@@ -306,15 +305,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.example) {
             const example = document.createElement('p');
-            example.className = 'w-full mt-4 text-sm text-mute italic text-center px-2';
+            example.className = 'card-example';
             example.textContent = `“${data.example}”`;
             back.appendChild(example);
         }
 
         const nextWrap = document.createElement('div');
-        nextWrap.className = 'absolute bottom-5 left-0 w-full px-5';
+        nextWrap.className = 'card-next';
         nextWrap.innerHTML = `
-            <button class="next-btn w-full py-3 rounded-lg bg-ink text-white text-sm font-medium active:scale-[0.98] transition-all">Next card</button>
+            <button class="next-btn btn btn-dark btn-block">Next card</button>
         `;
         back.appendChild(nextWrap);
 

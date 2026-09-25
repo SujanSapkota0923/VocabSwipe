@@ -1,194 +1,155 @@
-"""
-Background task processing for vocabulary meaning fetching
+"""Filling in missing meanings from the dictionary API.
+
+A list uploaded as bare words is playable straight away; the meanings arrive
+afterwards. The work runs in a daemon thread so the upload request returns at
+once, and every step is written back to the database, so a restart mid-run
+leaves a list that can be picked up again rather than one stuck at
+"processing".
 """
 
+import logging
 import threading
 import time
-from django.db import transaction
+
+from django.db import close_old_connections
+
 from .models import Vocabulary, WordList
 from .utils.dictionary_api import DictionaryAPI
 
+logger = logging.getLogger(__name__)
 
-def process_word_chunk(word_list_id, chunk_words, chunk_number, total_chunks):
-    """
-    Process a chunk of words - fetch meanings and update database
-
-    Args:
-        word_list_id: ID of the WordList being processed
-        chunk_words: List of Vocabulary objects to process
-        chunk_number: Current chunk number (for logging)
-        total_chunks: Total number of chunks
-    """
-    try:
-        print(
-            f"\n[Chunk {chunk_number}/{total_chunks}] Processing {len(chunk_words)} words..."
-        )
-
-        for idx, vocab_obj in enumerate(chunk_words, 1):
-            # Skip if already has meaning
-            if vocab_obj.meaning_1:
-                continue
-
-            # Fetch full details from API
-            details = DictionaryAPI.fetch_word_details(vocab_obj.word)
-
-            if details:
-                meanings = details.get("meanings", [])
-                vocab_obj.meaning_1 = meanings[0] if len(meanings) > 0 else ""
-                vocab_obj.meaning_2 = meanings[1] if len(meanings) > 1 else None
-                vocab_obj.meaning_3 = meanings[2] if len(meanings) > 2 else None
-
-                # New fields
-                vocab_obj.example_sentence = details.get("example")
-                vocab_obj.audio_url = details.get("audio_url")
-            else:
-                # Placeholder if API fails
-                vocab_obj.meaning_1 = f"Definition not found for '{vocab_obj.word}'"
-
-            vocab_obj.save()
-
-            # Update progress after EACH word (not just at the end of chunk)
-            with transaction.atomic():
-                word_list = WordList.objects.select_for_update().get(id=word_list_id)
-                word_list.words_processed += 1
-                word_list.save()
-
-            # Add delay to avoid rate limiting
-            if idx < len(chunk_words):
-                time.sleep(0.5)
-
-        print(f"[Chunk {chunk_number}/{total_chunks}] ✅ Completed!")
-
-    except Exception as e:
-        print(f"[Chunk {chunk_number}/{total_chunks}] ❌ Error: {e}")
-        # Don't fail the entire process for one chunk error
-        with transaction.atomic():
-            word_list = WordList.objects.select_for_update().get(id=word_list_id)
-            word_list.error_message = f"Error in chunk {chunk_number}: {str(e)}"
-            word_list.save()
+PAUSE_BETWEEN_WORDS = 0.5
 
 
-def process_word_list_background(word_list_id, chunk_size=50):
-    """
-    Background task to process all words in a WordList
-    Divides words into chunks and processes them sequentially
-
-    Args:
-        word_list_id: ID of the WordList to process
-        chunk_size: Number of words per chunk (default: 50)
-    """
-    try:
-        print(f"\n{'='*60}")
-        print(f"Background Processing Started")
-        print(f"WordList ID: {word_list_id}")
-        print(f"Chunk Size: {chunk_size}")
-        print(f"{'='*60}\n")
-
-        # Get the word list and update status
-        word_list = WordList.objects.get(id=word_list_id)
-        word_list.processing_status = "processing"
-        word_list.save()
-
-        # Get all words that need processing (empty meaning_1)
-        words_to_process = list(
-            Vocabulary.objects.filter(word_list_id=word_list_id, meaning_1="").order_by(
-                "id"
-            )
-        )
-
-        if not words_to_process:
-            print("No words to process - all have meanings already")
-            word_list.processing_status = "completed"
-            word_list.save()
-            return
-
-        # Divide into chunks
-        chunks = [
-            words_to_process[i : i + chunk_size]
-            for i in range(0, len(words_to_process), chunk_size)
-        ]
-
-        total_chunks = len(chunks)
-        print(f"Total words to process: {len(words_to_process)}")
-        print(f"Number of chunks: {total_chunks}")
-        print(f"Words per chunk: {chunk_size}\n")
-
-        # Process each chunk sequentially
-        for chunk_num, chunk in enumerate(chunks, 1):
-            process_word_chunk(word_list_id, chunk, chunk_num, total_chunks)
-
-        # Mark as completed
-        word_list.refresh_from_db()
-        word_list.processing_status = "completed"
-        word_list.save()
-
-        print(f"\n{'='*60}")
-        print(f"✅ Background Processing Completed!")
-        print(
-            f"Total words processed: {word_list.words_processed}/{word_list.total_words}"
-        )
-        print(f"{'='*60}\n")
-
-    except Exception as e:
-        print(f"\n❌ Background Processing Failed: {e}\n")
-        try:
-            word_list = WordList.objects.get(id=word_list_id)
-            word_list.processing_status = "failed"
-            word_list.error_message = str(e)
-            word_list.save()
-        except:
-            pass
-
-
-def start_background_processing(word_list_id, chunk_size=50):
-    """
-    Start background processing in a separate thread
-
-    Args:
-        word_list_id: ID of the WordList to process
-        chunk_size: Number of words per chunk (default: 50)
-    """
-    thread = threading.Thread(
-        target=process_word_list_background,
-        args=(word_list_id, chunk_size),
-        daemon=True,
+def pending_words(word_list_id):
+    return list(
+        Vocabulary.objects
+        .filter(word_list_id=word_list_id, meaning_1='')
+        .order_by('id')
     )
-    thread.start()
-    print(f"🚀 Started background processing for WordList {word_list_id}")
 
 
-def process_multiple_word_lists_sequential(word_list_ids):
+def fetch_meanings_for_list(word_list_id, pause=PAUSE_BETWEEN_WORDS, progress=None):
+    """Fill in every empty meaning in one list. Returns the number of words done.
+
+    Safe to call again: it only looks at words that still have no meaning, so a
+    run that was interrupted simply continues where it stopped.
     """
-    Process multiple word lists sequentially in a single background thread
-    This prevents overwhelming the API with concurrent requests
+    try:
+        word_list = WordList.objects.get(id=word_list_id)
+    except WordList.DoesNotExist:
+        logger.warning('Meaning lookup skipped, list %s is gone', word_list_id)
+        return 0
 
-    Args:
-        word_list_ids: List of WordList IDs to process sequentially
+    words = pending_words(word_list_id)
+    if not words:
+        word_list.processing_status = 'completed'
+        word_list.words_processed = word_list.total_words
+        word_list.save(update_fields=['processing_status', 'words_processed'])
+        return 0
+
+    WordList.objects.filter(id=word_list_id).update(processing_status='processing')
+    logger.info('Meaning lookup started for list %s (%s words)', word_list_id, len(words))
+
+    already_done = max((word_list.total_words or 0) - len(words), 0)
+    done = 0
+    for index, vocabulary in enumerate(words, 1):
+        try:
+            details = DictionaryAPI.fetch_word_details(vocabulary.word)
+        except Exception:
+            logger.exception('Dictionary lookup failed for %r', vocabulary.word)
+            details = {}
+
+        meanings = details.get('meanings') or []
+        if meanings:
+            vocabulary.meaning_1 = meanings[0]
+            vocabulary.meaning_2 = meanings[1] if len(meanings) > 1 else None
+            vocabulary.meaning_3 = meanings[2] if len(meanings) > 2 else None
+            vocabulary.example_sentence = details.get('example')
+            vocabulary.audio_url = details.get('audio_url')
+        else:
+            # The card stays playable; it just shows no definition.
+            vocabulary.meaning_1 = f'No definition found for "{vocabulary.word}".'
+
+        vocabulary.save(update_fields=[
+            'meaning_1', 'meaning_2', 'meaning_3', 'example_sentence', 'audio_url',
+        ])
+        done += 1
+
+        # Words already filled in by an earlier run still count towards progress.
+        WordList.objects.filter(id=word_list_id).update(words_processed=already_done + index)
+
+        if progress:
+            progress(index, len(words))
+
+        if pause and index < len(words):
+            time.sleep(pause)
+
+    WordList.objects.filter(id=word_list_id).update(
+        processing_status='completed',
+        words_processed=word_list.total_words or done,
+    )
+    logger.info('Meaning lookup finished for list %s', word_list_id)
+    return done
+
+
+_running = set()
+_running_lock = threading.Lock()
+
+
+def _run_in_thread(word_list_id):
+    try:
+        fetch_meanings_for_list(word_list_id)
+    except Exception as exc:
+        logger.exception('Meaning lookup crashed for list %s', word_list_id)
+        WordList.objects.filter(id=word_list_id).update(
+            processing_status='failed', error_message=str(exc)[:500]
+        )
+    finally:
+        with _running_lock:
+            _running.discard(word_list_id)
+        close_old_connections()
+
+
+def start_background_processing(word_list_id):
+    """Kick off the lookup without blocking the request.
+
+    Does nothing if this process is already working on the same list, so
+    reloading the dashboard cannot pile up duplicate threads.
     """
+    with _running_lock:
+        if word_list_id in _running:
+            return None
+        _running.add(word_list_id)
 
-    def process_all():
-        print(f"\n{'='*60}")
-        print(f"Sequential Processing Started")
-        print(f"Total Parts: {len(word_list_ids)}")
-        print(f"{'='*60}\n")
-
-        for idx, word_list_id in enumerate(word_list_ids, 1):
-            try:
-                word_list = WordList.objects.get(id=word_list_id)
-                print(
-                    f"\n[Part {idx}/{len(word_list_ids)}] Processing: {word_list.name}"
-                )
-                process_word_list_background(word_list_id, chunk_size=50)
-                print(
-                    f"[Part {idx}/{len(word_list_ids)}] ✅ Completed: {word_list.name}"
-                )
-            except Exception as e:
-                print(f"[Part {idx}/{len(word_list_ids)}] ❌ Error: {e}")
-
-        print(f"\n{'='*60}")
-        print(f"✅ All {len(word_list_ids)} parts processed!")
-        print(f"{'='*60}\n")
-
-    thread = threading.Thread(target=process_all, daemon=True)
+    thread = threading.Thread(target=_run_in_thread, args=(word_list_id,), daemon=True)
     thread.start()
-    print(f"🚀 Started sequential background processing for {len(word_list_ids)} parts")
+    logger.info('Background meaning lookup queued for list %s', word_list_id)
+    return thread
+
+
+def reset_interrupted_lists():
+    """Move lists left mid-run by a restart back to 'pending'.
+
+    Called once at startup. Without it a list whose worker was killed shows a
+    progress bar that never moves.
+    """
+    stuck = WordList.objects.filter(processing_status='processing')
+    count = stuck.update(processing_status='pending')
+    if count:
+        logger.info('Reset %s interrupted meaning lookup(s) to pending', count)
+    return count
+
+
+def resume_pending_lookups(word_lists):
+    """Restart the lookup for any of these lists that is still waiting.
+
+    The dashboard calls this, so a list left behind by a restart picks itself
+    up the next time its owner looks at it.
+    """
+    started = 0
+    for word_list in word_lists:
+        if word_list.processing_status in ('pending', 'processing'):
+            if start_background_processing(word_list.id) is not None:
+                started += 1
+    return started

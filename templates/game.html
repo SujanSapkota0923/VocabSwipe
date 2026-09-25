@@ -2,259 +2,106 @@
 {% load static %}
 {% block title %}{% if word_list %}{{ word_list.name }}{% else %}Play{% endif %} · VocabSwipe{% endblock %}
 
-{% block extra_css %}
-<style>
-    body {
-        overscroll-behavior: none;
-    }
-
-    .card-container {
-        perspective: 1000px;
-        width: 100%;
-        max-width: 26rem;
-        height: min(30rem, 58vh);
-        position: relative;
-        margin: 0 auto;
-        touch-action: none;
-    }
-
-    .vocab-card {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        cursor: grab;
-        transform-origin: center bottom;
-        transition: transform 0.1s ease-out, opacity 0.1s ease-out;
-        user-select: none;
-        touch-action: none;
-    }
-
-    .vocab-card:active {
-        cursor: grabbing;
-    }
-
-    .card-inner {
-        width: 100%;
-        height: 100%;
-        position: relative;
-        transform-style: preserve-3d;
-        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .card-inner.is-flipped {
-        transform: rotateY(180deg);
-    }
-
-    .card-face {
-        position: absolute;
-        inset: 0;
-        backface-visibility: hidden;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 1.5rem;
-        border-radius: 1rem;
-        border: 1px solid #E6E6E6;
-        background: #FFFFFF;
-        box-shadow: 0 1px 2px rgba(20, 20, 20, 0.04), 0 8px 24px -12px rgba(20, 20, 20, 0.15);
-    }
-
-    .card-back {
-        transform: rotateY(180deg);
-        overflow-y: auto;
-        justify-content: flex-start;
-        padding-top: 2rem;
-        padding-bottom: 5rem;
-        background: #FAFAF9;
-    }
-
-    .swipe-indicator {
-        position: absolute;
-        top: 1.5rem;
-        padding: 0.35rem 0.75rem;
-        border: 2px solid;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        font-size: 0.8rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        opacity: 0;
-        transition: opacity 0.1s;
-        z-index: 10;
-    }
-
-    .swipe-right .swipe-indicator.know {
-        opacity: 1;
-        color: #F61500;
-        border-color: #F61500;
-        left: 1.25rem;
-        transform: rotate(-12deg);
-    }
-
-    .swipe-left .swipe-indicator.dont-know {
-        opacity: 1;
-        color: #737373;
-        border-color: #737373;
-        right: 1.25rem;
-        transform: rotate(12deg);
-    }
-
-    .vocab-card:nth-last-child(2) {
-        transform: translateZ(-30px) translateY(8px) scale(0.97);
-        opacity: 0.7;
-    }
-
-    .vocab-card:nth-last-child(3) {
-        transform: translateZ(-60px) translateY(16px) scale(0.94);
-        opacity: 0.45;
-    }
-
-    .vocab-card:nth-last-child(n+4) {
-        opacity: 0;
-    }
-
-    #timer-bar,
-    #progress-bar {
-        transition: width 0.12s linear;
-    }
-
-    .loading-dot {
-        animation: loading-pulse 1s ease-in-out infinite;
-    }
-
-    @keyframes loading-pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.25; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .loading-dot {
-            animation: none;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="max-w-xl mx-auto px-4 py-6 md:py-10" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
+<div class="wrap wrap-narrow page" id="game-root" data-mode="{{ mode }}" data-seconds="{{ seconds }}"
     data-list-id="{{ word_list.id|default:'' }}" data-review="{{ review_mode|yesno:'true,false' }}"
     data-auth="{{ user.is_authenticated|yesno:'true,false' }}">
 
-    <!-- Header -->
-    <div class="flex items-start justify-between gap-3 mb-4">
-        <div class="min-w-0">
+    <div class="game-head">
+        <div style="min-width:0">
             <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
-                class="text-sm text-mute hover:text-ink transition-colors">&larr; Back</a>
-            <h1 class="font-semibold truncate mt-1">
+                class="small muted">&larr; Back</a>
+            <h1 class="truncate" style="font-size:1.125rem;font-weight:600;margin-top:4px">
                 {% if word_list %}{{ word_list.name }}{% else %}All my words{% endif %}
             </h1>
         </div>
 
-        <div class="flex items-center gap-1 p-1 rounded-lg bg-paper border border-line text-xs font-medium shrink-0">
+        <div class="mode-switch">
             <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=classic"
-                class="px-3 py-1.5 rounded-md transition-colors {% if mode == 'classic' %}bg-white border border-line text-ink{% else %}text-mute hover:text-ink{% endif %}">Classic</a>
+                class="{% if mode == 'classic' %}is-on{% endif %}">Classic</a>
             <a href="?{% if word_list %}list_id={{ word_list.id }}&{% endif %}mode=timer"
-                class="px-3 py-1.5 rounded-md transition-colors {% if mode == 'timer' %}bg-white border border-line text-ink{% else %}text-mute hover:text-ink{% endif %}">Timer</a>
+                class="{% if mode == 'timer' %}is-on{% endif %}">Timer</a>
         </div>
     </div>
 
-    <!-- Progress -->
-    <div class="flex items-center gap-3 mb-4">
-        <div class="flex-grow h-1 bg-line rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-brand-500 w-0"></div>
+    <div class="row" style="flex-wrap:nowrap;margin-bottom:16px">
+        <div class="meter" style="flex:1 1 auto">
+            <span id="progress-bar"></span>
         </div>
-        <span id="progress-text" class="text-xs text-mute tabular-nums shrink-0">0 / 0</span>
+        <span id="progress-text" class="tiny muted nums" style="flex-shrink:0">0 / 0</span>
     </div>
 
     {% if mode == 'timer' %}
-    <div class="mb-4">
-        <div class="flex justify-between items-center mb-1.5 text-xs text-mute">
+    <div style="margin-bottom:16px">
+        <div class="row tiny muted" style="justify-content:space-between;margin-bottom:6px">
             <span>Time left</span>
-            <span id="timer-text" class="tabular-nums">{{ seconds }}s</span>
+            <span id="timer-text" class="nums">{{ seconds }}s</span>
         </div>
-        <div class="w-full h-1 bg-line rounded-full overflow-hidden">
-            <div id="timer-bar" class="h-full bg-ink w-full"></div>
+        <div class="meter meter-ink">
+            <span id="timer-bar" style="width:100%"></span>
         </div>
     </div>
     {% endif %}
 
     {% if not user.is_authenticated %}
-    <p class="mb-4 text-xs text-mute bg-paper border border-line rounded-lg px-3 py-2">
+    <p class="flash tiny" style="margin-bottom:16px">
         Playing as a guest — progress stays in this browser.
-        <a href="{% url 'signup' %}" class="text-brand-600 font-medium">Sign up</a> to save it.
+        <a href="{% url 'signup' %}" class="link">Sign up</a> to save it.
     </p>
     {% endif %}
 
-    <!-- Score -->
-    <div class="flex justify-center items-center gap-4 mb-4 text-sm">
-        <span class="text-brand-600 font-medium">Known <span id="score-known" class="tabular-nums">0</span></span>
-        <span class="text-mute">To review <span id="score-unknown" class="tabular-nums">0</span></span>
-        <span id="streak-badge"
-            class="hidden text-xs font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1">
-            <span id="streak-count" class="tabular-nums">0</span> day streak
+    <div class="score-row">
+        <span class="accent" style="font-weight:500">Known <span id="score-known" class="nums">0</span></span>
+        <span class="muted">To review <span id="score-unknown" class="nums">0</span></span>
+        <span id="streak-badge" class="badge badge-brand hidden">
+            <span id="streak-count" class="nums">0</span> day streak
         </span>
     </div>
 
-    <div id="game-container" class="relative">
+    <div id="game-container">
         <div id="card-stack" class="card-container hidden"></div>
 
-        <div id="loading-screen" class="text-center rounded-xl border border-line py-14 px-6">
-            <div class="loading-dot w-2.5 h-2.5 mx-auto mb-4 rounded-sm bg-brand-500"></div>
-            <p class="text-mute text-sm">Loading cards…</p>
+        <div id="loading-screen" class="board-state">
+            <div class="loading-dot"></div>
+            <p class="small muted">Loading cards…</p>
         </div>
 
-        <div id="error-screen" class="hidden text-center rounded-xl border border-line py-14 px-6">
-            <h2 class="text-xl font-semibold mb-2">Could not load the cards</h2>
-            <p class="text-mute text-sm mb-6">Check your connection and try again.</p>
-            <button id="retry-btn"
-                class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Try
-                again</button>
+        <div id="error-screen" class="board-state hidden">
+            <h2 class="section-title" style="margin-bottom:8px">Could not load the cards</h2>
+            <p class="small muted" style="margin-bottom:24px">Check your connection and try again.</p>
+            <button id="retry-btn" class="btn btn-primary">Try again</button>
         </div>
 
-        <div id="empty-screen" class="hidden text-center rounded-xl border border-line py-14 px-6">
-            <h2 class="text-xl font-semibold mb-2">No words here</h2>
-            <p class="text-mute text-sm mb-6">Upload a list, join one with a code, or play a public list.</p>
-            <div class="flex flex-wrap justify-center gap-2">
-                <a href="{% url 'explore' %}"
-                    class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors">Explore
-                    lists</a>
+        <div id="empty-screen" class="board-state hidden">
+            <h2 class="section-title" style="margin-bottom:8px">No words here</h2>
+            <p class="small muted" style="margin-bottom:24px">Upload a list, join one with a code, or play a public
+                list.</p>
+            <div class="row" style="justify-content:center">
+                <a href="{% url 'explore' %}" class="btn btn-primary">Explore lists</a>
                 {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}"
-                    class="px-5 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">My
-                    lists</a>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline">My lists</a>
                 {% endif %}
             </div>
         </div>
 
-        <div id="completion-screen" class="hidden text-center rounded-xl border border-line py-12 px-6">
-            <div class="w-10 h-10 mx-auto mb-4 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center">
-                <span class="w-2.5 h-2.5 rounded-sm bg-brand-500"></span>
-            </div>
-            <h2 class="text-xl font-semibold mb-2">Deck finished</h2>
-            <p id="completion-message" class="text-mute text-sm mb-6"></p>
-            <div class="flex flex-col sm:flex-row justify-center gap-2">
-                <button id="replay-btn"
-                    class="px-5 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Play
-                    again</button>
+        <div id="completion-screen" class="board-state hidden">
+            <h2 class="section-title" style="margin-bottom:8px">Deck finished</h2>
+            <p id="completion-message" class="small muted" style="margin-bottom:24px"></p>
+            <div class="row" style="justify-content:center">
+                <button id="replay-btn" class="btn btn-primary">Play again</button>
                 <a href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'explore' %}{% endif %}"
-                    class="px-5 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">
+                    class="btn btn-outline">
                     {% if user.is_authenticated %}My lists{% else %}Explore more{% endif %}</a>
             </div>
         </div>
     </div>
 
-    <!-- Controls -->
-    <div class="mt-6 grid grid-cols-2 gap-2 max-w-sm mx-auto sm:hidden">
-        <button id="btn-unknown"
-            class="py-3 rounded-lg border border-line text-sm font-medium active:scale-[0.98] transition-all">Don't
-            know</button>
-        <button id="btn-known"
-            class="py-3 rounded-lg bg-brand-500 text-white text-sm font-medium active:scale-[0.98] transition-all">Know
-            it</button>
+    <div class="answer-buttons">
+        <button id="btn-unknown" class="btn btn-outline">Don't know</button>
+        <button id="btn-known" class="btn btn-primary">Know it</button>
     </div>
 
-    <p class="hidden sm:flex justify-center gap-6 mt-6 text-xs text-mute">
+    <p class="key-hints">
         <span>&larr; Don't know</span>
         <span>Know it &rarr;</span>
         <span>Space — next card</span>

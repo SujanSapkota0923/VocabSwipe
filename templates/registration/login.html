@@ -2,45 +2,37 @@
 {% block title %}Log in · VocabSwipe{% endblock %}
 
 {% block content %}
-<div class="max-w-sm mx-auto px-4 py-12 md:py-20">
-    <h1 class="text-2xl font-bold tracking-tight mb-1">Welcome back</h1>
-    <p class="text-sm text-mute mb-7">Log in to reach your lists and saved progress.</p>
+<div class="wrap wrap-tight page" style="padding-block:56px">
+    <h1 class="title">Welcome back</h1>
+    <p class="small muted" style="margin:4px 0 28px">Log in to reach your lists and saved progress.</p>
 
-    <form method="post" class="rounded-xl border border-line p-6 space-y-4">
+    <form method="post" class="card card-pad stack">
         {% csrf_token %}
         {% if form.non_field_errors %}
-        <p class="text-sm text-brand-600 bg-brand-50 border border-brand-100 rounded-lg px-3 py-2">
-            {{ form.non_field_errors|striptags }}</p>
+        <p class="error-box">{{ form.non_field_errors|striptags }}</p>
         {% endif %}
 
-        <div>
-            <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium mb-2">Username</label>
+        <div class="field">
+            <label for="{{ form.username.id_for_label }}">Username</label>
             <input type="text" name="username" id="{{ form.username.id_for_label }}" autocomplete="username" autofocus
-                required
-                class="w-full px-4 py-3 rounded-lg border border-line bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition-colors">
+                required value="{{ form.username.value|default:'' }}">
         </div>
 
-        <div>
-            <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium mb-2">Password</label>
-            <input type="password" name="password" id="{{ form.password.id_for_label }}"
-                autocomplete="current-password" required
-                class="w-full px-4 py-3 rounded-lg border border-line bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition-colors">
+        <div class="field">
+            <label for="{{ form.password.id_for_label }}">Password</label>
+            <input type="password" name="password" id="{{ form.password.id_for_label }}" autocomplete="current-password"
+                required>
         </div>
 
         <input type="hidden" name="next" value="{{ next }}">
 
-        <button type="submit"
-            class="w-full py-3 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Log
-            in</button>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
 
-        <p class="text-center text-sm text-mute">No account?
-            <a href="{% url 'signup' %}" class="text-brand-600 font-medium hover:text-brand-700">Sign up</a>
-        </p>
+        <p class="small muted center">No account? <a href="{% url 'signup' %}" class="link">Sign up</a></p>
     </form>
 
-    <p class="text-center text-sm text-mute mt-5">
-        Or <a href="{% url 'explore' %}" class="text-ink font-medium hover:text-brand-600">play a public list</a>
-        without an account.
+    <p class="small muted center" style="margin-top:20px">
+        Or <a href="{% url 'explore' %}" class="link">play a public list</a> without an account.
     </p>
 </div>
 {% endblock %}

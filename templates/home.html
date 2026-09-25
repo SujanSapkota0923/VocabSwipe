@@ -2,112 +2,96 @@
 {% block title %}VocabSwipe — learn words by swiping{% endblock %}
 
 {% block content %}
-<section class="max-w-5xl mx-auto px-4 pt-12 pb-10 md:pt-20 md:pb-16">
-    <div class="grid md:grid-cols-2 gap-10 md:gap-14 items-center">
-        <div>
-            <p class="inline-flex items-center gap-2 text-xs font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-3 py-1 mb-5">
-                <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
-                No account needed to play public lists
-            </p>
-            <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1] mb-4">
-                Learn words by<br><span class="text-brand-500">swiping</span> cards.
-            </h1>
-            <p class="text-mute text-base md:text-lg leading-relaxed mb-7 max-w-md">
-                Swipe right for words you know, left for the ones you don't. Upload your own list,
-                or play a list someone else shared.
-            </p>
-            <div class="flex flex-wrap gap-3">
-                <a href="{% url 'explore' %}"
-                    class="px-5 py-3 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Browse
-                    public lists</a>
-                <a href="{% url 'signup' %}"
-                    class="px-5 py-3 rounded-lg border border-line font-medium hover:border-ink transition-colors">Create
-                    an account</a>
-            </div>
+<section class="wrap hero">
+    <div>
+        <p class="badge badge-brand" style="margin-bottom:20px">
+            <span class="dot"></span> No account needed to play public lists
+        </p>
+        <h1 class="title-lg" style="margin-bottom:16px">
+            Learn words by<br><span class="accent">swiping</span> cards.
+        </h1>
+        <p class="lead" style="margin-bottom:28px">
+            Swipe right for the words you know, left for the ones you don't. Upload your own list,
+            or play a list someone else shared.
+        </p>
+        <div class="row">
+            <a href="{% url 'explore' %}" class="btn btn-primary">Browse public lists</a>
+            <a href="{% url 'signup' %}" class="btn btn-outline">Create an account</a>
         </div>
+    </div>
 
-        <!-- Card preview -->
-        <div class="relative h-56 md:h-72 select-none" aria-hidden="true">
-            <div class="absolute inset-x-8 top-6 h-40 md:h-52 rounded-2xl border border-line bg-paper rotate-[6deg]"></div>
-            <div class="absolute inset-x-6 top-3 h-40 md:h-52 rounded-2xl border border-line bg-white rotate-[-3deg]"></div>
-            <div class="absolute inset-x-4 top-0 h-40 md:h-52 rounded-2xl border border-line bg-white shadow-sm flex flex-col items-center justify-center gap-2">
-                <span class="text-2xl md:text-3xl font-bold tracking-tight">ephemeral</span>
-                <span class="text-sm text-mute">lasting a very short time</span>
-                <div class="flex gap-6 mt-3 text-xs font-medium">
-                    <span class="text-mute">&larr; Don't know</span>
-                    <span class="text-brand-500">Know it &rarr;</span>
-                </div>
-            </div>
+    <div class="preview" aria-hidden="true">
+        <div class="preview-back"></div>
+        <div class="preview-mid"></div>
+        <div class="preview-front">
+            <span style="font-size:1.5rem;font-weight:700">ephemeral</span>
+            <span class="small muted">lasting a very short time</span>
+            <span class="row tiny" style="margin-top:12px;gap:24px">
+                <span class="muted">&larr; Don't know</span>
+                <span class="accent">Know it &rarr;</span>
+            </span>
         </div>
     </div>
 </section>
 
-<!-- Join with code -->
-<section class="max-w-5xl mx-auto px-4">
-    <div class="rounded-2xl border border-line p-6 md:p-8">
-        <h2 class="font-semibold text-lg mb-1">Got a share code?</h2>
-        <p class="text-sm text-mute mb-5">Enter the 6-character code a friend gave you and start playing right away — no
-            sign-up.</p>
-        <form method="post" class="flex flex-col sm:flex-row gap-3 max-w-md">
+<section class="wrap">
+    <div class="card card-pad">
+        <h2 class="section-title">Got a share code?</h2>
+        <p class="small muted" style="margin:4px 0 20px">Enter the 6-character code a friend gave you and start playing
+            right away — no sign-up.</p>
+        <form method="post" class="form-row" style="max-width:26rem">
             {% csrf_token %}
-            <div class="flex-grow">
+            <div class="grow">
+                <label for="{{ join_form.code.id_for_label }}" class="sr-only">Share code</label>
                 {{ join_form.code }}
-                {% for error in join_form.code.errors %}
-                <p class="text-xs text-brand-600 mt-2">{{ error }}</p>
-                {% endfor %}
+                {% for error in join_form.code.errors %}<p class="error">{{ error }}</p>{% endfor %}
             </div>
-            <button type="submit"
-                class="px-6 py-3 rounded-lg bg-ink text-white font-medium hover:bg-black active:scale-[0.98] transition-all">Play</button>
+            <button type="submit" class="btn btn-dark">Play</button>
         </form>
     </div>
 </section>
 
-<!-- Public lists -->
-<section class="max-w-5xl mx-auto px-4 mt-12">
-    <div class="flex items-end justify-between gap-3 mb-5">
+<section class="wrap" style="margin-top:48px">
+    <div class="row-between" style="margin-bottom:20px">
         <div>
-            <h2 class="font-semibold text-lg">Public lists</h2>
-            <p class="text-sm text-mute">{{ public_count }} list{{ public_count|pluralize }} anyone can play.</p>
+            <h2 class="section-title">Public lists</h2>
+            <p class="small muted">{{ public_count }} list{{ public_count|pluralize }} anyone can play.</p>
         </div>
-        <a href="{% url 'explore' %}" class="text-sm text-brand-600 font-medium hover:text-brand-700">See all</a>
+        <a href="{% url 'explore' %}" class="link small">See all</a>
     </div>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div class="grid grid-3">
         {% for item in public_lists %}
-        <a href="{% url 'game' %}?list_id={{ item.id }}"
-            class="group rounded-xl border border-line p-5 hover:border-brand-300 hover:bg-brand-50/40 transition-colors">
-            <h3 class="font-semibold truncate group-hover:text-brand-600 transition-colors">{{ item.name }}</h3>
-            <p class="text-sm text-mute mt-1 line-clamp-2">{{ item.description|default:"No description." }}</p>
-            <p class="text-xs text-mute mt-3">{{ item.total }} word{{ item.total|pluralize }}{% if item.owner %} ·
+        <a href="{% url 'game' %}?list_id={{ item.id }}" class="card card-link">
+            <h3 class="truncate" style="font-weight:600">{{ item.name }}</h3>
+            <p class="small muted" style="margin-top:4px">{{ item.description|default:"No description." }}</p>
+            <p class="tiny muted" style="margin-top:12px">{{ item.total }} word{{ item.total|pluralize }}{% if item.owner %} ·
                 by {{ item.owner.username }}{% endif %}</p>
         </a>
         {% empty %}
-        <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-line p-10 text-center text-mute text-sm">
-            No public lists yet. <a href="{% url 'signup' %}" class="text-brand-600 font-medium">Sign up</a> and upload
-            the first one.
+        <div class="card card-empty span-all">
+            No public lists yet. <a href="{% url 'signup' %}" class="link">Sign up</a> and upload the first one.
         </div>
         {% endfor %}
     </div>
 </section>
 
-<!-- How it works -->
-<section class="max-w-5xl mx-auto px-4 mt-14">
-    <div class="grid sm:grid-cols-3 gap-3">
-        <div class="rounded-xl border border-line p-5">
-            <span class="text-brand-500 font-semibold text-sm">01</span>
-            <h3 class="font-semibold mt-2 mb-1">Upload a list</h3>
-            <p class="text-sm text-mute">A .csv, .txt or .xlsx file with one word per line and up to three meanings.</p>
+<section class="wrap" style="margin-top:56px">
+    <div class="grid grid-3">
+        <div class="card">
+            <span class="step-num">01</span>
+            <h3 style="font-weight:600;margin:8px 0 4px">Upload a list</h3>
+            <p class="small muted">A .csv, .txt or .xlsx file with one word per line and up to three meanings.</p>
         </div>
-        <div class="rounded-xl border border-line p-5">
-            <span class="text-brand-500 font-semibold text-sm">02</span>
-            <h3 class="font-semibold mt-2 mb-1">Share it</h3>
-            <p class="text-sm text-mute">Every list gets a share code. Make it public and anyone can play without an
-                account.</p>
+        <div class="card">
+            <span class="step-num">02</span>
+            <h3 style="font-weight:600;margin:8px 0 4px">Share it</h3>
+            <p class="small muted">Every list gets a share code. Make it public and anyone can play without an account.</p>
         </div>
-        <div class="rounded-xl border border-line p-5">
-            <span class="text-brand-500 font-semibold text-sm">03</span>
-            <h3 class="font-semibold mt-2 mb-1">Swipe to learn</h3>
-            <p class="text-sm text-mute">Classic or timer mode. Signed in, your progress is saved per word.</p>
+        <div class="card">
+            <span class="step-num">03</span>
+            <h3 style="font-weight:600;margin:8px 0 4px">Swipe to learn</h3>
+            <p class="small muted">Classic or timer mode. Signed in, your progress is saved word by word.</p>
         </div>
     </div>
 </section>

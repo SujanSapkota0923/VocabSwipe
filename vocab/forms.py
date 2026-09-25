@@ -4,11 +4,10 @@ from django.contrib.auth.models import User
 
 from .models import WordList
 
-INPUT_CLASS = (
-    'w-full px-4 py-3 rounded-lg border border-line bg-white text-ink '
-    'placeholder:text-mute focus:border-brand-500 focus:ring-2 focus:ring-brand-100 '
-    'outline-none transition-colors'
-)
+INPUT_CLASS = 'input'
+
+ALLOWED_UPLOAD_EXTENSIONS = ('.txt', '.csv', '.tsv', '.xlsx', '.xlsm')
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 
 class UploadFileForm(forms.Form):
@@ -22,12 +21,26 @@ class UploadFileForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'class': INPUT_CLASS, 'placeholder': 'Short description (optional)'}),
     )
-    file = forms.FileField(widget=forms.FileInput(attrs={'accept': '.txt,.csv,.xlsx'}))
+    file = forms.FileField(widget=forms.FileInput(attrs={'accept': '.txt,.csv,.tsv,.xlsx'}))
     is_public = forms.BooleanField(
         required=False,
         label='Make this list public',
         help_text='Public lists can be played by anyone, no account needed.',
     )
+
+    def clean_file(self):
+        uploaded = self.cleaned_data['file']
+        name = (uploaded.name or '').lower()
+
+        if not name.endswith(ALLOWED_UPLOAD_EXTENSIONS):
+            allowed = ', '.join(ALLOWED_UPLOAD_EXTENSIONS)
+            raise forms.ValidationError(f'Use one of these file types: {allowed}.')
+
+        if uploaded.size > MAX_UPLOAD_BYTES:
+            limit_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise forms.ValidationError(f'That file is larger than {limit_mb} MB.')
+
+        return uploaded
 
 
 class ListSettingsForm(forms.ModelForm):
@@ -58,7 +71,7 @@ class JoinCodeForm(forms.Form):
     code = forms.CharField(
         max_length=8,
         widget=forms.TextInput(attrs={
-            'class': INPUT_CLASS + ' uppercase tracking-[0.35em] font-semibold text-center',
+            'class': INPUT_CLASS + ' input-code',
             'placeholder': 'ABC123',
             'autocapitalize': 'characters',
             'autocomplete': 'off',

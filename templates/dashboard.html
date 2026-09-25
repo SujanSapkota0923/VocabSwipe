@@ -1,193 +1,179 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}My lists · VocabSwipe{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+<div class="wrap page">
 
-    <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <div class="row-between" style="margin-bottom:32px">
         <div>
-            <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Hi, {{ user.username }}</h1>
-            <p class="text-mute mt-1 text-sm flex flex-wrap items-center gap-2">
+            <h1 class="title">Hi, {{ user.username }}</h1>
+            <p class="small muted row" style="margin-top:6px">
                 <span>{{ total_words }} word{{ total_words|pluralize }} available · {{ known_total }} marked known</span>
                 {% if stats.current_streak %}
-                <span class="text-xs font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1">
-                    {{ stats.current_streak }} day streak</span>
+                <span class="badge badge-brand">{{ stats.current_streak }} day streak</span>
                 {% endif %}
             </p>
         </div>
-        <div class="flex gap-2">
-            <a href="{% url 'game' %}?mode=classic"
-                class="px-4 py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Play
-                all</a>
-            <a href="{% url 'game' %}?mode=timer"
-                class="px-4 py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer
-                mode</a>
+        <div class="row">
+            <a href="{% url 'game' %}?mode=classic" class="btn btn-primary btn-sm">Play all</a>
+            <a href="{% url 'game' %}?mode=timer" class="btn btn-outline btn-sm">Timer mode</a>
         </div>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-3 mb-10">
-        <!-- Join with a code -->
-        <div class="rounded-xl border border-line p-5 md:p-6">
-            <h2 class="font-semibold mb-1">Play a friend's list</h2>
-            <p class="text-sm text-mute mb-4">Enter the 6-character code they shared.</p>
-            <form method="post" class="flex flex-col sm:flex-row gap-2">
+    <div class="grid grid-2 grid-start" style="margin-bottom:40px">
+        <div class="card card-pad">
+            <h2 class="section-title">Play a friend's list</h2>
+            <p class="small muted" style="margin:4px 0 16px">Enter the 6-character code they shared.</p>
+            <form method="post" class="form-row">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="join">
-                <div class="flex-grow">
+                <div class="grow">
+                    <label for="{{ join_form.code.id_for_label }}" class="sr-only">Share code</label>
                     {{ join_form.code }}
-                    {% for error in join_form.code.errors %}
-                    <p class="text-xs text-brand-600 mt-2">{{ error }}</p>
-                    {% endfor %}
+                    {% for error in join_form.code.errors %}<p class="error">{{ error }}</p>{% endfor %}
                 </div>
-                <button type="submit"
-                    class="px-5 py-3 rounded-lg bg-ink text-white font-medium hover:bg-black active:scale-[0.98] transition-all">Join</button>
+                <button type="submit" class="btn btn-dark">Join</button>
             </form>
         </div>
 
-        <!-- Upload -->
-        <div class="rounded-xl border border-line p-5 md:p-6">
-            <h2 class="font-semibold mb-1">Upload a list</h2>
-            <p class="text-sm text-mute mb-4">
-                Format: <code class="text-ink bg-paper border border-line rounded px-1.5 py-0.5 text-xs">word, meaning 1;
-                    meaning 2; meaning 3</code>
+        <div class="card card-pad">
+            <h2 class="section-title">Upload a list</h2>
+            <p class="small muted" style="margin:4px 0 16px">
+                Format: <code>word, meaning 1; meaning 2</code>. A file of bare words works too — the meanings are
+                looked up for you.
             </p>
-            <form method="post" enctype="multipart/form-data" id="upload-form" class="space-y-3">
+            <form method="post" enctype="multipart/form-data" id="upload-form" class="stack">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="upload">
 
-                {{ form.name }}
-                {{ form.description }}
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="sr-only">List name</label>
+                    {{ form.name }}
+                </div>
+                <div>
+                    <label for="{{ form.description.id_for_label }}" class="sr-only">Description</label>
+                    {{ form.description }}
+                </div>
 
-                <div id="drop-zone"
-                    class="border border-dashed border-line rounded-lg p-6 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition-colors">
-                    <p class="text-sm font-medium">Tap or drop your file here</p>
-                    <p class="text-xs text-mute mt-1">.csv, .txt or .xlsx</p>
+                <div id="drop-zone" class="dropzone" role="button" tabindex="0">
+                    <p class="small" style="font-weight:500">Tap or drop your file here</p>
+                    <p class="tiny muted" style="margin-top:4px">.csv, .txt or .xlsx</p>
                     <input type="file" name="file" id="file-input" class="hidden" accept=".txt,.csv,.xlsx">
                 </div>
 
-                <div id="file-selected"
-                    class="hidden items-center justify-between gap-3 bg-paper border border-line rounded-lg px-4 py-3">
-                    <span id="file-name" class="text-sm truncate"></span>
-                    <button type="button" id="remove-file"
-                        class="text-xs text-mute hover:text-brand-600 shrink-0">Remove</button>
+                <div id="file-selected" class="file-chip hidden">
+                    <span id="file-name" class="small truncate"></span>
+                    <button type="button" id="remove-file" class="btn-link btn-link-danger">Remove</button>
                 </div>
 
                 {% if form.file.errors %}
-                <p class="text-xs text-brand-600">{{ form.file.errors|striptags }}</p>
+                <p class="error">{{ form.file.errors|striptags }}</p>
                 {% endif %}
 
-                <label class="flex items-start gap-2 text-sm cursor-pointer">
+                <label class="checkbox">
                     {{ form.is_public }}
                     <span>
-                        <span class="font-medium">Make it public</span>
-                        <span class="block text-xs text-mute">Anyone can find and play it without an account.</span>
+                        <span style="font-weight:500">Make it public</span>
+                        <span class="tiny muted" style="display:block">Anyone can find and play it without an
+                            account.</span>
                     </span>
                 </label>
 
-                <button type="submit" id="submit-btn"
-                    class="w-full py-3 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Upload
-                    list</button>
+                <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Upload list</button>
             </form>
         </div>
     </div>
 
-    <!-- My lists -->
-    <h2 class="font-semibold text-lg mb-4">My lists</h2>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <h2 class="section-title" style="margin-bottom:16px">My lists</h2>
+    <div class="grid grid-3">
         {% for item in my_lists %}
-        <div class="rounded-xl border border-line p-5 flex flex-col">
-            <div class="flex items-start justify-between gap-2">
-                <h3 class="font-semibold truncate">{{ item.obj.name }}</h3>
+        <div class="card">
+            <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
+                <h3 class="truncate" style="font-weight:600">{{ item.obj.name }}</h3>
                 {% if item.obj.is_public %}
-                <span class="shrink-0 text-[11px] font-medium text-brand-600 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">Public</span>
+                <span class="badge badge-brand badge-square">Public</span>
                 {% else %}
-                <span class="shrink-0 text-[11px] font-medium text-mute bg-paper border border-line rounded px-2 py-0.5">Private</span>
+                <span class="badge badge-square">Private</span>
                 {% endif %}
             </div>
-            <p class="text-xs text-mute mt-1">{{ item.total }} word{{ item.total|pluralize }} · {{ item.known }} known ·
-                {{ item.unknown }} to review</p>
+            <p class="tiny muted" style="margin-top:6px">{{ item.total }} word{{ item.total|pluralize }} ·
+                {{ item.known }} known · {{ item.unknown }} to review</p>
 
             {% if item.obj.is_processing %}
-            <div class="mt-3 processing-row" data-list-id="{{ item.obj.id }}">
-                <div class="flex items-center justify-between text-xs text-mute mb-1.5">
+            <div class="processing-row" style="margin-top:12px" data-list-id="{{ item.obj.id }}">
+                <div class="row tiny muted" style="justify-content:space-between;margin-bottom:6px">
                     <span>Looking up meanings</span>
-                    <span class="processing-pct tabular-nums">{{ item.obj.progress_percentage }}%</span>
+                    <span class="processing-pct nums">{{ item.obj.progress_percentage }}%</span>
                 </div>
-                <div class="h-1 bg-line rounded-full overflow-hidden">
-                    <div class="processing-bar h-full bg-brand-500" style="width: {{ item.obj.progress_percentage }}%">
-                    </div>
+                <div class="meter">
+                    <span class="processing-bar" style="width: {{ item.obj.progress_percentage }}%"></span>
                 </div>
             </div>
             {% elif item.obj.processing_status == 'failed' %}
-            <p class="mt-3 text-xs text-brand-600">Meaning lookup failed. The words are still playable.</p>
+            <p class="tiny" style="margin-top:12px;color:var(--brand-dark)">Meaning lookup failed. The words are still
+                playable.</p>
             {% endif %}
 
-            <div class="flex items-center gap-2 mt-3 text-sm">
-                <span class="text-xs text-mute">Code</span>
-                <code class="bg-paper border border-line rounded px-2 py-0.5 font-semibold tracking-[0.2em] text-xs">{{ item.obj.share_code }}</code>
-                <button type="button" class="copy-code text-xs text-brand-600 hover:text-brand-700"
-                    data-code="{{ item.obj.share_code }}">Copy</button>
+            <div class="row" style="margin-top:12px">
+                <span class="tiny muted">Code</span>
+                <code class="code-chip">{{ item.obj.share_code }}</code>
+                <button type="button" class="copy-code btn-link" data-code="{{ item.obj.share_code }}">Copy</button>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 mt-4">
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic"
-                    class="text-center py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Classic</a>
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer"
-                    class="text-center py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer</a>
+            <div class="spacer"></div>
+
+            <div class="btn-pair">
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic" class="btn btn-primary btn-sm">Classic</a>
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer" class="btn btn-outline btn-sm">Timer</a>
                 {% if item.unknown %}
                 <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                    class="col-span-2 text-center py-2.5 rounded-lg bg-paper border border-line text-sm font-medium hover:border-ink transition-colors">Review
-                    {{ item.unknown }}</a>
+                    class="btn btn-soft btn-sm span-all">Review {{ item.unknown }}</a>
                 {% endif %}
             </div>
 
-            <div class="flex items-center gap-3 mt-4 pt-3 border-t border-line text-xs">
+            <div class="row divider tiny">
                 <form action="{% url 'toggle_public' item.obj.id %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="text-mute hover:text-ink transition-colors">
+                    <button type="submit" class="btn-link">
                         {% if item.obj.is_public %}Make private{% else %}Make public{% endif %}
                     </button>
                 </form>
-                <a href="{% url 'list_settings' item.obj.id %}" class="text-mute hover:text-ink transition-colors">Edit</a>
-                <form action="{% url 'delete_list' item.obj.id %}" method="post" class="ml-auto"
+                <a href="{% url 'list_settings' item.obj.id %}" class="btn-link">Edit</a>
+                <form action="{% url 'delete_list' item.obj.id %}" method="post" style="margin-left:auto"
                     onsubmit="return confirm('Delete this list and all its words? This cannot be undone.');">
                     {% csrf_token %}
-                    <button type="submit" class="text-mute hover:text-brand-600 transition-colors">Delete</button>
+                    <button type="submit" class="btn-link btn-link-danger">Delete</button>
                 </form>
             </div>
         </div>
         {% empty %}
-        <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-dashed border-line p-10 text-center text-mute text-sm">
+        <div class="card card-empty span-all">
             No lists yet. Upload a file above to create your first one.
         </div>
         {% endfor %}
     </div>
 
-    <!-- Joined lists -->
     {% if joined_lists %}
-    <h2 class="font-semibold text-lg mt-10 mb-4">Friends' lists</h2>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <h2 class="section-title" style="margin:40px 0 16px">Friends' lists</h2>
+    <div class="grid grid-3">
         {% for item in joined_lists %}
-        <div class="rounded-xl border border-line p-5 flex flex-col">
-            <h3 class="font-semibold truncate">{{ item.obj.name }}</h3>
-            <p class="text-xs text-mute mt-1">by {{ item.obj.owner.username }} · {{ item.total }} words ·
+        <div class="card">
+            <h3 class="truncate" style="font-weight:600">{{ item.obj.name }}</h3>
+            <p class="tiny muted" style="margin-top:6px">by {{ item.obj.owner.username }} · {{ item.total }} words ·
                 {{ item.known }} known</p>
-            <div class="grid grid-cols-2 gap-2 mt-4">
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic"
-                    class="text-center py-2.5 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 active:scale-[0.98] transition-all">Classic</a>
-                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer"
-                    class="text-center py-2.5 rounded-lg border border-line text-sm font-medium hover:border-ink transition-colors">Timer</a>
+            <div class="spacer"></div>
+            <div class="btn-pair">
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=classic" class="btn btn-primary btn-sm">Classic</a>
+                <a href="{% url 'game' %}?list_id={{ item.obj.id }}&mode=timer" class="btn btn-outline btn-sm">Timer</a>
                 {% if item.unknown %}
                 <a href="{% url 'game' %}?list_id={{ item.obj.id }}&review_mode=true"
-                    class="col-span-2 text-center py-2.5 rounded-lg bg-paper border border-line text-sm font-medium hover:border-ink transition-colors">Review
-                    {{ item.unknown }}</a>
+                    class="btn btn-soft btn-sm span-all">Review {{ item.unknown }}</a>
                 {% endif %}
             </div>
-            <form action="{% url 'leave_list' item.obj.id %}" method="post"
-                class="mt-4 pt-3 border-t border-line text-xs">
+            <form action="{% url 'leave_list' item.obj.id %}" method="post" class="divider">
                 {% csrf_token %}
-                <button type="submit" class="text-mute hover:text-brand-600 transition-colors">Remove from my
-                    lists</button>
+                <button type="submit" class="btn-link btn-link-danger">Remove from my lists</button>
             </form>
         </div>
         {% endfor %}
@@ -197,93 +183,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const fileSelected = document.getElementById('file-selected');
-    const fileName = document.getElementById('file-name');
-    const removeFile = document.getElementById('remove-file');
-    const submitBtn = document.getElementById('submit-btn');
-
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('border-brand-400', 'bg-brand-50');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('border-brand-400', 'bg-brand-50');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-brand-400', 'bg-brand-50');
-        if (e.dataTransfer.files.length) {
-            fileInput.files = e.dataTransfer.files;
-            handleFileSelect();
-        }
-    });
-
-    fileInput.addEventListener('change', handleFileSelect);
-
-    function handleFileSelect() {
-        if (!fileInput.files.length) return;
-        fileName.textContent = fileInput.files[0].name;
-        fileSelected.classList.remove('hidden');
-        fileSelected.classList.add('flex');
-        dropZone.classList.add('hidden');
-    }
-
-    removeFile.addEventListener('click', () => {
-        fileInput.value = '';
-        fileSelected.classList.add('hidden');
-        fileSelected.classList.remove('flex');
-        dropZone.classList.remove('hidden');
-    });
-
-    document.getElementById('upload-form').addEventListener('submit', () => {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Processing…';
-    });
-
-    // Poll lists whose meanings are still being fetched
-    const processingRows = document.querySelectorAll('.processing-row');
-    if (processingRows.length) {
-        const poll = setInterval(async () => {
-            let stillWorking = false;
-            for (const row of processingRows) {
-                try {
-                    const response = await fetch(`/api/lists/${row.dataset.listId}/progress/`);
-                    if (!response.ok) continue;
-                    const data = await response.json();
-                    row.querySelector('.processing-bar').style.width = `${data.progress_percentage}%`;
-                    row.querySelector('.processing-pct').textContent = `${data.progress_percentage}%`;
-                    if (data.status === 'pending' || data.status === 'processing') {
-                        stillWorking = true;
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            }
-            if (!stillWorking) {
-                clearInterval(poll);
-                window.location.reload();
-            }
-        }, 3000);
-    }
-
-    document.querySelectorAll('.copy-code').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(btn.dataset.code);
-                const old = btn.textContent;
-                btn.textContent = 'Copied';
-                setTimeout(() => { btn.textContent = old; }, 1500);
-            } catch (err) {
-                console.error(err);
-            }
-        });
-    });
-</script>
+<script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

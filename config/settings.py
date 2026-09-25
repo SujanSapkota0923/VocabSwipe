@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -176,9 +177,19 @@ LOGGING = {
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# The hashed manifest is what production serves. The test run uses the plain
+# backend so the suite does not depend on collectstatic having been run first.
+TESTING = 'test' in sys.argv
+
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    'staticfiles': {
+        'BACKEND': (
+            'django.contrib.staticfiles.storage.StaticFilesStorage'
+            if TESTING
+            else 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        )
+    },
 }
 
 MEDIA_URL = 'media/'
